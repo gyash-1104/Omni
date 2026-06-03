@@ -1,25 +1,11 @@
 {
-  "version": 2,
-  "builds": [
-    {
-      "src": "admin-ui/package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "dist"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/assets/(.*)",
-      "dest": "/assets/$1"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
-    }
-  ],
-  "env": {
-    "VITE_API_URL": "https://your-render-backend.onrender.com"
-  }
+  "framework": "vite",
+  "buildCommand": "npm run build",
+  "outputDirectory": "dist",
+  "rewrites": [
+    { "source": "/krsna/assets/(.*)", "destination": "/assets/$1" },
+    { "source": "/krsna", "destination": "/krsna/" },
+    { "source": "/krsna/(.*)", "destination": "/index.html" },
+    { "source": "/", "destination": "/krsna/" }
+  ]
 }
