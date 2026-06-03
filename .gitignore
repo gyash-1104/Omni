@@ -1,0 +1,86 @@
+# ─────────────────────────────────────────────
+# Secrets & credentials (never commit)
+# ─────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+!**/.env.example
+
+*.pem
+*.key
+*.p12
+*.pfx
+credentials.json
+secrets.json
+*.credentials
+service-account*.json
+.secrets/
+
+# ─────────────────────────────────────────────
+# Python
+# ─────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+ENV/
+*.egg-info/
+.eggs/
+build/
+*.egg
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# ─────────────────────────────────────────────
+# Node / frontend
+# ─────────────────────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+*.local
+.vite/
+
+# ─────────────────────────────────────────────
+# Logs & runtime data (may contain PII / session data)
+# ─────────────────────────────────────────────
+logs/
+*.log
+*.jsonl
+
+# ─────────────────────────────────────────────
+# Local tunnel / dev tooling
+# ─────────────────────────────────────────────
+scripts/cloudflared.exe
+.tunnel-url
+tunnel-err.log
+
+# ─────────────────────────────────────────────
+# Redis / Supabase local
+# ─────────────────────────────────────────────
+.upstash
+supabase/
+
+# ─────────────────────────────────────────────
+# IDE & editor
+# ─────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ─────────────────────────────────────────────
+# OS
+# ─────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+Desktop.ini

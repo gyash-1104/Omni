@@ -1,0 +1,55 @@
+[
+  {
+    "id": "q1_automation_systems",
+    "type": "mcq",
+    "field": "service_q1",
+    "twilio_content_sid": "HXf93d89220d2080e194b5bec2c5ce5e9a",
+    "prompt": "Which automation systems are you interested in?",
+    "options": [
+      { "label": "Smart Lighting & Scenes", "value": "smart_lighting_scenes" },
+      { "label": "Security (CCTV, Smart Locks, Video Door)", "value": "security_cctv_smart_locks_video_door" },
+      { "label": "Home Theatre / AV Control", "value": "home_theatre_av_control" },
+      { "label": "Smart Curtains / Climate Control", "value": "smart_curtains_climate_control" },
+      { "label": "Full Home Automation Suite", "value": "full_home_automation_suite" }
+    ]
+  },
+  {
+    "id": "q2_new_or_existing",
+    "type": "mcq",
+    "field": "service_q2",
+    "twilio_content_sid": "HX98ab08763bba72aba1039ea5c6389955",
+    "prompt": "Is this for a new or existing property?",
+    "options": [
+      { "label": "New construction / under-build", "value": "new_construction_under_build" },
+      { "label": "Existing home - retrofit", "value": "existing_home_retrofit" },
+      { "label": "Apartment / flat", "value": "apartment_flat" },
+      { "label": "Villa / independent house", "value": "villa_independent_house" },
+      { "label": "Office / commercial space", "value": "office_commercial_space" }
+    ]
+  },
+  {
+    "id": "q3_control_mode",
+    "type": "mcq",
+    "field": "service_q3",
+    "twilio_content_sid": "HXca88741e7bfefea27eead2c2e5cbc456",
+    "prompt": "What is your preferred control mode?",
+    "options": [
+      { "label": "App control (smartphone)", "value": "app_control_smartphone" },
+      { "label": "Voice control (Alexa / Google)", "value": "voice_control_alexa_google" },
+      { "label": "Wall panels / touch switches", "value": "wall_panels_touch_switches" },
+      { "label": "All of the above", "value": "all_of_the_above" }
+    ]
+  },
+  {
+    "id": "q4_property_goals",
+    "type": "descriptive",
+    "field": "service_q4",
+    "prompt": "Describe the property including size, number of rooms or zones, current wiring availability, and specific automation goals."
+  },
+  {
+    "id": "q5_upload_plan",
+    "type": "file_request",
+    "field": "attachments",
+    "prompt": "Upload floor plan, electrical layout, or reference images of automation features you like."
+  }
+]

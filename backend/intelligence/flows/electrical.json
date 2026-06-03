@@ -1,0 +1,55 @@
+[
+  {
+    "id": "q1_electrical_work_type",
+    "type": "mcq",
+    "field": "service_q1",
+    "twilio_content_sid": "HX414b0b14035d4698a472ec0b37945937",
+    "prompt": "What type of electrical work do you need?",
+    "options": [
+      { "label": "New Wiring / Rewiring", "value": "new_wiring_rewiring" },
+      { "label": "Panel / DB Upgrade", "value": "panel_db_upgrade" },
+      { "label": "Switches, Sockets & Fixtures", "value": "switches_sockets_fixtures" },
+      { "label": "EV Charging Point Installation", "value": "ev_charging_point_installation" },
+      { "label": "Fault Finding & Repair", "value": "fault_finding_repair" }
+    ]
+  },
+  {
+    "id": "q2_property_type_scale",
+    "type": "mcq",
+    "field": "service_q2",
+    "twilio_content_sid": "HX33638ea66befc4f52be2c7d463ee9662",
+    "prompt": "What is the property type and scale?",
+    "options": [
+      { "label": "Residential - Apartment", "value": "residential_apartment" },
+      { "label": "Residential - Independent House / Villa", "value": "residential_independent_house_villa" },
+      { "label": "Commercial / Office", "value": "commercial_office" },
+      { "label": "Industrial / Factory", "value": "industrial_factory" },
+      { "label": "Agricultural / Farm", "value": "agricultural_farm" }
+    ]
+  },
+  {
+    "id": "q3_urgency",
+    "type": "mcq",
+    "field": "service_q3",
+    "twilio_content_sid": "HX8beb0cfe38c1eb29e20def644b3d986b",
+    "prompt": "Is this an urgent / breakdown situation or a planned installation?",
+    "options": [
+      { "label": "Urgent - breakdown or hazard", "value": "urgent_breakdown_hazard" },
+      { "label": "Planned - new installation", "value": "planned_new_installation" },
+      { "label": "Planned - upgrade or modification", "value": "planned_upgrade_modification" },
+      { "label": "Inspection / audit only", "value": "inspection_audit_only" }
+    ]
+  },
+  {
+    "id": "q4_requirement_description",
+    "type": "descriptive",
+    "field": "service_q4",
+    "prompt": "Describe the electrical requirement including property size, current issue, load details, or specific fixtures needed."
+  },
+  {
+    "id": "q5_upload_layout",
+    "type": "file_request",
+    "field": "attachments",
+    "prompt": "Upload electrical layout, existing panel photos, or any related drawings."
+  }
+]

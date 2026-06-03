@@ -1,0 +1,51 @@
+[
+  {
+    "id": "q1_development_type",
+    "type": "mcq",
+    "field": "service_q1",
+    "prompt": "What type of property development are you considering?",
+    "options": [
+      { "label": "Residential Plots / Layouts", "value": "residential_plots_layouts" },
+      { "label": "Apartment / Multi-storey", "value": "apartment_multistorey" },
+      { "label": "Commercial / Retail Complex", "value": "commercial_retail_complex" },
+      { "label": "Mixed-Use Development", "value": "mixed_use_development" },
+      { "label": "Joint Development (JD/JV)", "value": "joint_development_jv" }
+    ]
+  },
+  {
+    "id": "q2_current_stage",
+    "type": "mcq",
+    "field": "service_q2",
+    "prompt": "What is your current stage?",
+    "options": [
+      { "label": "Land identified - feasibility", "value": "land_feasibility_study" },
+      { "label": "Planned - need partner", "value": "planned_need_partner" },
+      { "label": "Approved - need execution", "value": "approved_need_execution" },
+      { "label": "Investor / opportunities", "value": "investor_opportunities" }
+    ]
+  },
+  {
+    "id": "q3_investment_scale",
+    "type": "mcq",
+    "field": "service_q3",
+    "prompt": "What is the expected project investment scale?",
+    "options": [
+      { "label": "Under INR 1 Cr", "value": "under_1_cr" },
+      { "label": "INR 1 - 5 Cr", "value": "1_5_cr" },
+      { "label": "INR 5 - 20 Cr", "value": "5_20_cr" },
+      { "label": "Above INR 20 Cr", "value": "above_20_cr" }
+    ]
+  },
+  {
+    "id": "q4_project_description",
+    "type": "descriptive",
+    "field": "service_q4",
+    "prompt": "Describe the project including land size, location, zoning, expected units or area, and your involvement or role."
+  },
+  {
+    "id": "q5_upload_documents",
+    "type": "file_request",
+    "field": "attachments",
+    "prompt": "Upload land documents, approved plans, site photos, or feasibility reports."
+  }
+]

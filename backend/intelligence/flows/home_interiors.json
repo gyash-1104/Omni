@@ -1,0 +1,56 @@
+[
+  {
+    "id": "q1_interior_type",
+    "type": "mcq",
+    "field": "service_q1",
+    "twilio_content_sid": "HX02f90dcded88254d350a15410e5527ff",
+    "prompt": "What type of interior project do you need?",
+    "options": [
+      { "label": "Full Home Interiors", "value": "full_home_interiors" },
+      { "label": "Modular Kitchen", "value": "modular_kitchen" },
+      { "label": "Wardrobe / Storage", "value": "wardrobe_storage" },
+      { "label": "Office / Commercial Space", "value": "office_commercial_space" },
+      { "label": "Single Room (Living / Bedroom / etc.)", "value": "single_room" }
+    ]
+  },
+  {
+    "id": "q2_style_preference",
+    "type": "mcq",
+    "field": "service_q2",
+    "twilio_content_sid": "HXcddcdf255b29661f08f8fdf0f6433959",
+    "prompt": "What is your style preference?",
+    "options": [
+      { "label": "Contemporary / Modern", "value": "contemporary_modern" },
+      { "label": "Minimalist", "value": "minimalist" },
+      { "label": "Traditional / Classic", "value": "traditional_classic" },
+      { "label": "Industrial / Loft", "value": "industrial_loft" },
+      { "label": "Open to suggestions", "value": "open_to_suggestions" }
+    ]
+  },
+  {
+    "id": "q3_budget_range",
+    "type": "mcq",
+    "field": "service_q3",
+    "twilio_content_sid": "HX23a3a2f2100f1177227c98337821041b",
+    "prompt": "What is your estimated budget range for interiors?",
+    "options": [
+      { "label": "Under INR 5 Lakhs", "value": "under_5_lakhs" },
+      { "label": "INR 5 - 15 Lakhs", "value": "5_15_lakhs" },
+      { "label": "INR 15 - 40 Lakhs", "value": "15_40_lakhs" },
+      { "label": "Above INR 40 Lakhs", "value": "above_40_lakhs" },
+      { "label": "Not sure yet", "value": "not_sure_yet" }
+    ]
+  },
+  {
+    "id": "q4_space_description",
+    "type": "descriptive",
+    "field": "service_q4",
+    "prompt": "Describe your space including property size, key rooms to be designed, and any specific needs or preferences."
+  },
+  {
+    "id": "q5_upload_files",
+    "type": "file_request",
+    "field": "attachments",
+    "prompt": "Upload floor plan, inspiration images, or photos of the current space."
+  }
+]

@@ -1,0 +1,80 @@
+"""Stage validation and fuzzy input tests."""
+from backend.schemas.service import ServiceCategory
+from backend.schemas.session import Session, ConversationStage
+from backend.intelligence import stage_engine as se
+from backend.intelligence import hybrid_flow
+from backend.intelligence.input_normalizer import match_mcq_option
+from backend.intelligence.qualification_builder import build_client_details_steps
+
+
+def test_fuzzy_morning_contact_time():
+    step = build_client_details_steps()[-1]
+    options = step["options"]
+    matched = match_mcq_option("morning hours", options)
+    assert matched is not None
+    assert matched["value"] == "morning"
+
+
+def test_invalid_empty_field_not_complete():
+    session = Session(session_id="t", phone_number="+1", conversation_stage=ConversationStage.ROUTING)
+    se.mark_field_validated(session, "client_name", "")
+    assert not se.field_is_complete(session, "client_name")
+
+
+def test_cannot_enter_final_review_with_partial_data():
+    session = Session(
+        session_id="t", phone_number="+1",
+        service_category=ServiceCategory.ELECTRICAL,
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+    )
+    se.mark_field_validated(session, "client_name", "Navya")
+    se.mark_field_validated(session, "city", "Hyderabad")
+    assert not se.can_enter_final_review(session)
+
+
+def test_reconcile_resets_premature_final_review():
+    session = Session(
+        session_id="t", phone_number="+1",
+        service_category=ServiceCategory.ELECTRICAL,
+        conversation_stage=ConversationStage.CONFIRMATION,
+        flow_state={"current_stage": "final_review", "completed_stages": ["client_details"]},
+    )
+    session.completed_fields = ["client_name", "phone_number"]
+    se.reconcile_session(session)
+    assert session.flow_state["current_stage"] != "final_review"
+    assert session.conversation_stage != ConversationStage.CONFIRMATION or not se.can_enter_final_review(session)
+
+
+def test_complete_attachment_upload_moves_to_review():
+    session = Session(
+        session_id="t", phone_number="+1",
+        service_category=ServiceCategory.ELECTRICAL,
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+    )
+    for field in se.required_fields_for_summary():
+        if field == "attachments":
+            continue
+        se.mark_field_validated(session, field, "test_value")
+    se.mark_field_validated(session, "service_category", "electrical")
+    session.service_category = ServiceCategory.ELECTRICAL
+    session.flow_state["current_stage"] = "attachments"
+    session.attachments.append(
+        type("M", (), {"file_name": "plan.png", "file_url": "http://x", "mime_type": "image/png"})()
+    )
+    from backend.schemas.session import AttachmentMeta
+    session.attachments = [
+        AttachmentMeta(file_name="plan.png", file_url="http://x", mime_type="image/png")
+    ]
+    msg = hybrid_flow.complete_attachment_upload(session)
+    assert "FINAL REVIEW" in msg or "final" in msg.lower() or se.can_enter_final_review(session)
+
+
+def test_stage_advances_one_at_a_time():
+    session = Session(session_id="t", phone_number="+919999999999", conversation_stage=ConversationStage.ROUTING)
+    se.start_client_stage(session)
+    se.mark_field_validated(session, "client_name", "Test")
+    before = se.fs_current_stage(session)
+    se.maybe_advance_current_stage(session)
+    after = se.fs_current_stage(session)
+    assert before == "client_details"
+    assert after == "client_details"

@@ -1,0 +1,52 @@
+[
+  {
+    "id": "q1_event_type",
+    "type": "mcq",
+    "field": "service_q1",
+    "prompt": "What type of event are you planning?",
+    "options": [
+      { "label": "Wedding / Reception", "value": "wedding_reception" },
+      { "label": "Corporate / Conference", "value": "corporate_conference" },
+      { "label": "Birthday / Anniversary", "value": "birthday_anniversary" },
+      { "label": "Product Launch / Expo", "value": "product_launch_exhibition" },
+      { "label": "Religious / Community", "value": "religious_community_function" }
+    ]
+  },
+  {
+    "id": "q2_guest_count",
+    "type": "mcq",
+    "field": "service_q2",
+    "prompt": "What is the approximate guest count?",
+    "options": [
+      { "label": "Under 50 guests", "value": "under_50" },
+      { "label": "50 - 150 guests", "value": "50_150" },
+      { "label": "150 - 500 guests", "value": "150_500" },
+      { "label": "Above 500 guests", "value": "above_500" }
+    ]
+  },
+  {
+    "id": "q3_services_needed",
+    "type": "mcq",
+    "field": "service_q3",
+    "prompt": "What services do you need from TatvaOps?",
+    "options": [
+      { "label": "Full event management", "value": "full_event_management" },
+      { "label": "Decor & theme setup", "value": "decor_theme_setup" },
+      { "label": "Catering coordination", "value": "catering_coordination" },
+      { "label": "AV, lighting & entertainment", "value": "av_lighting_entertainment" },
+      { "label": "Venue & logistics", "value": "venue_sourcing_logistics" }
+    ]
+  },
+  {
+    "id": "q4_event_description",
+    "type": "descriptive",
+    "field": "service_q4",
+    "prompt": "Describe your event including preferred date(s), venue (if finalised), theme or style, and key expectations."
+  },
+  {
+    "id": "q5_upload_references",
+    "type": "file_request",
+    "field": "attachments",
+    "prompt": "Upload inspiration images, mood boards, venue layout, or prior event references."
+  }
+]

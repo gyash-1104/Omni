@@ -1,0 +1,55 @@
+[
+  {
+    "id": "q1_project_type",
+    "type": "mcq",
+    "field": "service_q1",
+    "twilio_content_sid": "HX86e98c0937363a1921e78bcf56524c5b",
+    "prompt": "What type of residential construction project are you planning?",
+    "options": [
+      { "label": "New Home Build", "value": "new_home_build" },
+      { "label": "Floor Addition / Extension", "value": "floor_addition_extension" },
+      { "label": "Structural Repair / Retrofit", "value": "structural_repair_retrofit" },
+      { "label": "Farmhouse / Villa Construction", "value": "farmhouse_villa_construction" },
+      { "label": "Commercial", "value": "commercial" }
+    ]
+  },
+  {
+    "id": "q2_budget_range",
+    "type": "mcq",
+    "field": "service_q2",
+    "twilio_content_sid": "HXcd860e8ab8f8db78aa3522cf9ead6b15",
+    "prompt": "What is your estimated project budget range?",
+    "options": [
+      { "label": "Under INR 25 Lakhs", "value": "under_25_lakhs" },
+      { "label": "INR 25 - 75 Lakhs", "value": "25_75_lakhs" },
+      { "label": "INR 75 Lakhs - 1.5 Cr", "value": "75_lakhs_1_5_cr" },
+      { "label": "Above INR 1.5 Cr", "value": "above_1_5_cr" },
+      { "label": "Not decided yet", "value": "not_decided_yet" }
+    ]
+  },
+  {
+    "id": "q3_approvals",
+    "type": "mcq",
+    "field": "service_q3",
+    "twilio_content_sid": "HX18d025af139070c915a58bf9372406b6",
+    "prompt": "Do you already have approved drawings or permits?",
+    "options": [
+      { "label": "Yes, fully approved", "value": "yes_fully_approved" },
+      { "label": "In progress / pending approval", "value": "in_progress_pending_approval" },
+      { "label": "No, need assistance with permits", "value": "no_need_permit_assistance" },
+      { "label": "Not applicable", "value": "not_applicable" }
+    ]
+  },
+  {
+    "id": "q4_project_description",
+    "type": "descriptive",
+    "field": "service_q4",
+    "prompt": "Describe your project including plot size, number of floors, key rooms, and any special requirements."
+  },
+  {
+    "id": "q5_upload_docs",
+    "type": "file_request",
+    "field": "attachments",
+    "prompt": "Upload supporting documents (site plan, approved drawings, reference images, or soil reports if available)."
+  }
+]

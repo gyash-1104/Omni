@@ -1,0 +1,53 @@
+[
+  {
+    "id": "q1_irrigation_type",
+    "type": "mcq",
+    "field": "service_q1",
+    "prompt": "What type of irrigation system do you need?",
+    "options": [
+      { "label": "Drip Irrigation", "value": "drip_irrigation" },
+      { "label": "Sprinkler System", "value": "sprinkler_system" },
+      { "label": "Micro-Sprinkler / Fogger", "value": "micro_sprinkler_fogger" },
+      { "label": "Fertigation (Drip + Fert)", "value": "fertigation_drip_fertiliser" },
+      { "label": "Smart / Automated System", "value": "smart_automated_irrigation" }
+    ]
+  },
+  {
+    "id": "q2_crops_areas",
+    "type": "mcq",
+    "field": "service_q2",
+    "prompt": "What crops or areas are you irrigating?",
+    "options": [
+      { "label": "Row Crops (vegetables)", "value": "row_crops_vegetables" },
+      { "label": "Orchards / Fruit Trees", "value": "orchards_fruit_trees" },
+      { "label": "Greenhouse / Polyhouse", "value": "greenhouse_polyhouse" },
+      { "label": "Lawn / Landscaping", "value": "lawn_landscaping" },
+      { "label": "Mixed crop types", "value": "mixed_crop_types" }
+    ]
+  },
+  {
+    "id": "q3_water_source",
+    "type": "mcq",
+    "field": "service_q3",
+    "prompt": "What is your water source?",
+    "options": [
+      { "label": "Borewell / Tubewell", "value": "borewell_tubewell" },
+      { "label": "Open Well / Tank", "value": "open_well_tank" },
+      { "label": "Canal / River", "value": "canal_river" },
+      { "label": "Municipality / Piped", "value": "municipality_piped_supply" },
+      { "label": "Rainwater Harvesting", "value": "rainwater_harvesting" }
+    ]
+  },
+  {
+    "id": "q4_irrigation_needs",
+    "type": "descriptive",
+    "field": "service_q4",
+    "prompt": "Describe your irrigation needs including land size, crop type, water availability, current system (if any), and automation requirements."
+  },
+  {
+    "id": "q5_upload_setup",
+    "type": "file_request",
+    "field": "attachments",
+    "prompt": "Upload farm layout, soil or water test reports, or photos of the current irrigation setup."
+  }
+]

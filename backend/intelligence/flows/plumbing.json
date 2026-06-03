@@ -1,0 +1,52 @@
+[
+  {
+    "id": "q1_plumbing_work_type",
+    "type": "mcq",
+    "field": "service_q1",
+    "prompt": "What type of plumbing work do you need?",
+    "options": [
+      { "label": "New Plumbing Installation", "value": "new_plumbing_installation" },
+      { "label": "Leak Detection & Repair", "value": "leak_detection_repair" },
+      { "label": "Bathroom / Kitchen Fixtures", "value": "bathroom_kitchen_fixtures" },
+      { "label": "Drainage / Sewer Line Work", "value": "drainage_sewer_line_work" },
+      { "label": "Water Tank & Pump Install", "value": "water_tank_pump_installation" }
+    ]
+  },
+  {
+    "id": "q2_property_type",
+    "type": "mcq",
+    "field": "service_q2",
+    "prompt": "What is the property type?",
+    "options": [
+      { "label": "Residential - Apartment", "value": "residential_apartment" },
+      { "label": "Residential - Independent", "value": "residential_independent_home" },
+      { "label": "Commercial / Retail", "value": "commercial_retail" },
+      { "label": "Industrial / Manufacturing", "value": "industrial_manufacturing" },
+      { "label": "Agricultural / Farm", "value": "agricultural_farm" }
+    ]
+  },
+  {
+    "id": "q3_urgency",
+    "type": "mcq",
+    "field": "service_q3",
+    "prompt": "How urgent is this requirement?",
+    "options": [
+      { "label": "Emergency - active leak", "value": "emergency_active_leak" },
+      { "label": "Moderate - within a week", "value": "moderate_within_week" },
+      { "label": "Planned - within a month", "value": "planned_within_month" },
+      { "label": "Future / quotation only", "value": "future_quotation_only" }
+    ]
+  },
+  {
+    "id": "q4_requirement_description",
+    "type": "descriptive",
+    "field": "service_q4",
+    "prompt": "Describe the plumbing issue or installation scope including location, symptoms, or fittings required."
+  },
+  {
+    "id": "q5_upload_photos",
+    "type": "file_request",
+    "field": "attachments",
+    "prompt": "Upload photos of the affected area, plumbing layout, or relevant documents."
+  }
+]

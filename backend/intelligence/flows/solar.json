@@ -1,0 +1,54 @@
+[
+  {
+    "id": "q1_installation_connectivity",
+    "type": "mcq",
+    "field": "service_q1",
+    "twilio_content_sid": "HX62ce77c490cdcd537343dfcede624e3e",
+    "prompt": "What is the installation type and connectivity requirement?",
+    "options": [
+      { "label": "On-Grid (Grid-Tied)", "value": "on_grid_grid_tied" },
+      { "label": "Off-Grid (Battery Backup)", "value": "off_grid_battery_backup" },
+      { "label": "Hybrid (Grid + Battery)", "value": "hybrid_grid_battery" },
+      { "label": "Not sure - need recommendation", "value": "not_sure_need_recommendation" }
+    ]
+  },
+  {
+    "id": "q2_primary_use_case",
+    "type": "mcq",
+    "field": "service_q2",
+    "twilio_content_sid": "HX2c75cf2a0e8486dc70e29283c55fcd49",
+    "prompt": "What is the primary use case?",
+    "options": [
+      { "label": "Residential Home", "value": "residential_home" },
+      { "label": "Commercial / Office / Retail", "value": "commercial_office_retail" },
+      { "label": "Industrial / Factory", "value": "industrial_factory" },
+      { "label": "Agricultural / Farm Pump", "value": "agricultural_farm_pump" },
+      { "label": "Community / Common Area", "value": "community_common_area" }
+    ]
+  },
+  {
+    "id": "q3_monthly_bill",
+    "type": "mcq",
+    "field": "service_q3",
+    "twilio_content_sid": "HX3ac7277c5b6413d9d6a4ac37db793969",
+    "prompt": "What is your average monthly electricity bill?",
+    "options": [
+      { "label": "Under INR 1,500", "value": "under_1500" },
+      { "label": "INR 1,500 - INR 4,000", "value": "1500_4000" },
+      { "label": "INR 4,000 - INR 10,000", "value": "4000_10000" },
+      { "label": "Above INR 10,000", "value": "above_10000" }
+    ]
+  },
+  {
+    "id": "q4_energy_needs",
+    "type": "descriptive",
+    "field": "service_q4",
+    "prompt": "Describe your energy needs including roof type and area, current units consumed, load list, or any government subsidy interest."
+  },
+  {
+    "id": "q5_upload_bill_roof",
+    "type": "file_request",
+    "field": "attachments",
+    "prompt": "Upload your recent electricity bill, roof photos, or site plan."
+  }
+]

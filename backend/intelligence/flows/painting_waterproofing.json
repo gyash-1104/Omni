@@ -1,0 +1,56 @@
+[
+  {
+    "id": "q1_painting_type",
+    "type": "mcq",
+    "field": "service_q1",
+    "twilio_content_sid": "HX32268c4f0d7502bdf2af631c44707127",
+    "prompt": "What type of painting service do you require?",
+    "options": [
+      { "label": "Interior Painting (Walls / Ceiling)", "value": "interior_painting" },
+      { "label": "Exterior / Facade Painting", "value": "exterior_facade_painting" },
+      { "label": "Textured / Decorative Finishes", "value": "textured_decorative_finishes" },
+      { "label": "Wood / Metal Surface Painting", "value": "wood_metal_painting" },
+      { "label": "Full Property (Interior + Exterior)", "value": "full_property_interior_exterior" }
+    ]
+  },
+  {
+    "id": "q2_paintable_area",
+    "type": "mcq",
+    "field": "service_q2",
+    "twilio_content_sid": "HX1f6cec10f7b76c3d1ae01a6a379b88d8",
+    "prompt": "What is the approximate paintable area?",
+    "options": [
+      { "label": "Under 500 sq ft", "value": "under_500_sqft" },
+      { "label": "500 - 1500 sq ft", "value": "500_1500_sqft" },
+      { "label": "1500 - 3000 sq ft", "value": "1500_3000_sqft" },
+      { "label": "Above 3000 sq ft", "value": "above_3000_sqft" },
+      { "label": "Not measured yet", "value": "not_measured_yet" }
+    ]
+  },
+  {
+    "id": "q3_finish_type",
+    "type": "mcq",
+    "field": "service_q3",
+    "twilio_content_sid": "HX675e39f670f0193a6e03ba2cd545c4f5",
+    "prompt": "What finish type are you looking for?",
+    "options": [
+      { "label": "Matt / Flat", "value": "matt_flat" },
+      { "label": "Sheen / Satin", "value": "sheen_satin" },
+      { "label": "Semi-Gloss / Gloss", "value": "semi_gloss_gloss" },
+      { "label": "Texture / Stucco", "value": "texture_stucco" },
+      { "label": "Undecided - need guidance", "value": "undecided_need_guidance" }
+    ]
+  },
+  {
+    "id": "q4_scope_description",
+    "type": "descriptive",
+    "field": "service_q4",
+    "prompt": "Describe the property and painting scope including number of rooms, surface condition, colour preferences, or any special areas."
+  },
+  {
+    "id": "q5_upload_images",
+    "type": "file_request",
+    "field": "attachments",
+    "prompt": "Upload photos of the areas to be painted or reference colour or finish images."
+  }
+]

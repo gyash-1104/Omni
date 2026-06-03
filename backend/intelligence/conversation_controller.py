@@ -1,0 +1,292 @@
+"""
+Conversation controller — strict stage-based qualification, then final review.
+"""
+from __future__ import annotations
+
+from backend.schemas.session import Session, ConversationStage, MessageRole
+from backend.intelligence.persona import GUARDRAIL_REDIRECT
+from backend.intelligence import hybrid_flow
+from backend.intelligence import stage_engine as se
+from backend.intelligence.qualification_builder import format_final_review
+from backend.intelligence import edit_flow
+from backend.intelligence.lead_scorer import apply_lead_score
+from backend.intelligence.nova_router import (
+    detect_service,
+    is_service_more_selection,
+    get_consultant_display_name,
+)
+from backend.intelligence.consultants.registry import get_service_label
+from backend.schemas.service import CONSULTANT_IDS
+from backend.summarizer.summary_generator import get_summary_generator
+from backend.utils.logger import log_event
+
+OFF_TOPIC_KEYWORDS = [
+    "stock", "crypto", "bitcoin", "recipe", "weather", "cricket", "movie",
+    "exam", "job", "salary", "politics", "news", "visa", "marriage",
+]
+
+
+class AgentResponse:
+    def __init__(self, text: str, session: Session, summary_generated: bool = False):
+        self.text = text
+        self.session = session
+        self.summary_generated = summary_generated
+
+
+def _is_off_topic(message: str) -> bool:
+    lower = message.lower()
+    return any(kw in lower for kw in OFF_TOPIC_KEYWORDS)
+
+
+def _end_conversation(session: Session) -> None:
+    """Mark session complete and clear active qualification/edit state."""
+    edit_flow.clear_edit_mode(session)
+    session.flow_state["conversation_ended"] = True
+    session.flow_state.pop("current_step_id", None)
+    session.flow_state.pop("current_question", None)
+    session.flow_state.pop("pending_fields", None)
+
+
+class ConversationController:
+
+    def __init__(self):
+        self.summarizer = get_summary_generator()
+
+    async def _run_hybrid(
+        self,
+        session: Session,
+        user_message: str,
+        *,
+        button_text: str | None = None,
+        button_payload: str | None = None,
+        list_id: str | None = None,
+    ) -> AgentResponse | None:
+        hybrid_flow.init_flow(session)
+
+        if se.can_enter_final_review(session) and not hybrid_flow.has_active_flow(session):
+            if se.enter_final_review(session):
+                recap = format_final_review(session)
+                session.add_message(MessageRole.ASSISTANT, recap)
+                return AgentResponse(text=recap, session=session)
+
+        if not hybrid_flow.has_active_flow(session):
+            return None
+
+        hybrid_reply, handled = hybrid_flow.process_hybrid_turn(
+            session, user_message,
+            button_text=button_text, button_payload=button_payload, list_id=list_id,
+        )
+        if handled and hybrid_reply:
+            session.add_message(MessageRole.ASSISTANT, hybrid_reply)
+            return AgentResponse(text=hybrid_reply, session=session)
+        return None
+
+    async def process_message(
+        self,
+        session: Session,
+        user_message: str,
+        channel: str = "whatsapp",
+        button_text: str | None = None,
+        button_payload: str | None = None,
+        list_id: str | None = None,
+    ) -> AgentResponse:
+        se.reconcile_session(session)
+        await log_event("USER_MESSAGE", session_id=session.session_id,
+                        data={
+                            "message": user_message,
+                            "stage": session.conversation_stage,
+                            "flow_stage": se.fs_current_stage(session),
+                            "pending_fields": session.flow_state.get("pending_fields", []),
+                            "current_question": session.flow_state.get("current_question"),
+                        })
+
+        if session.summary_generated or session.conversation_stage == ConversationStage.SUMMARY_GENERATED:
+            thanks = (
+                "Your enquiry has already been submitted. "
+                "Our team will contact you during your preferred time.\n\n"
+                "Thank you for choosing TatvaOps."
+            )
+            session.add_message(MessageRole.USER, user_message)
+            session.add_message(MessageRole.ASSISTANT, thanks)
+            return AgentResponse(text=thanks, session=session)
+
+        in_review = (
+            se.is_in_final_review(session)
+            or (
+                se.can_enter_final_review(session)
+                and (
+                    session.flow_state.get("final_review_shown")
+                    or session.conversation_stage == ConversationStage.CONFIRMATION
+                    or edit_flow.is_active(session)
+                )
+            )
+        )
+        if in_review:
+            session.add_message(MessageRole.USER, user_message)
+            lower = user_message.lower().strip()
+
+            if edit_flow.is_active(session):
+                reply, _step, handled = edit_flow.process_edit_turn(
+                    session, user_message,
+                    button_text=button_text, button_payload=button_payload, list_id=list_id,
+                )
+                if handled:
+                    if (
+                        not edit_flow.is_active(session)
+                        and edit_flow.wants_confirm_submit(
+                            user_message,
+                            list_id=list_id or "",
+                            button_payload=button_payload or "",
+                            button_text=button_text or "",
+                        )
+                    ):
+                        pass
+                    else:
+                        session.add_message(MessageRole.ASSISTANT, reply)
+                        return AgentResponse(text=reply, session=session)
+
+            if edit_flow.wants_edit_again(user_message) or lower in ("edit", "edit details", "change", "fix"):
+                msg, _step = edit_flow.enter_edit_mode(session)
+                session.add_message(MessageRole.ASSISTANT, msg)
+                return AgentResponse(text=msg, session=session)
+
+            if edit_flow.wants_confirm_submit(
+                user_message,
+                list_id=list_id or "",
+                button_payload=button_payload or "",
+                button_text=button_text or "",
+            ):
+                if not se.can_enter_final_review(session):
+                    se.reconcile_session(session)
+                    step = hybrid_flow.get_current_step(session)
+                    msg = hybrid_flow.format_step_message(step) if step else "Please complete the remaining questions first."
+                    session.add_message(MessageRole.ASSISTANT, msg)
+                    return AgentResponse(text=msg, session=session)
+
+                summary = await self.summarizer.generate(session)
+                session.summary = summary.model_dump()
+                session.summary_generated = True
+                session.conversation_stage = ConversationStage.SUMMARY_GENERATED
+                apply_lead_score(session)
+                _end_conversation(session)
+                confirmation_text = summary.client_confirmation_text()
+                session.add_message(MessageRole.ASSISTANT, confirmation_text)
+                await log_event("SUMMARY_GENERATED", session_id=session.session_id,
+                                data={"lead_score": session.lead_score, "channel": channel})
+                return AgentResponse(
+                    text=confirmation_text,
+                    session=session,
+                    summary_generated=True,
+                )
+
+            hold = "Please reply *Confirm & Submit*, or *Edit Details* to update information."
+            session.add_message(MessageRole.ASSISTANT, hold)
+            return AgentResponse(text=hold, session=session)
+
+        if session.conversation_stage == ConversationStage.CONFIRMATION and not se.can_enter_final_review(session):
+            session.conversation_stage = ConversationStage.DETAIL_COLLECTION
+            se.reconcile_session(session)
+
+        session.add_message(MessageRole.USER, user_message)
+
+        if _is_off_topic(user_message):
+            session.add_message(MessageRole.ASSISTANT, GUARDRAIL_REDIRECT)
+            return AgentResponse(text=GUARDRAIL_REDIRECT, session=session)
+
+        if se.needs_client_details(session) and not session.flow_state.get("final_review_shown"):
+            se.start_client_stage(session)
+            resp = await self._run_hybrid(session, user_message,
+                                        button_text=button_text, button_payload=button_payload, list_id=list_id)
+            if resp:
+                return resp
+            # First stage bridge should appear once; avoid repeating it on Q2+.
+            session.flow_state["last_stage_shown"] = "client_details"
+            return AgentResponse(text=hybrid_flow.first_client_message(), session=session)
+
+        if edit_flow.is_active(session):
+            reply, _step, handled = edit_flow.process_edit_turn(
+                session, user_message,
+                button_text=button_text, button_payload=button_payload, list_id=list_id,
+            )
+            if handled:
+                session.add_message(MessageRole.ASSISTANT, reply)
+                return AgentResponse(text=reply, session=session)
+
+        if se.needs_service_selection(session) and not session.flow_state.get("final_review_shown"):
+            # Prefer interactive payload signals when present (WhatsApp list/button taps)
+            selection_input = (list_id or button_payload or button_text or user_message or "").strip()
+
+            if is_service_more_selection(
+                list_id=list_id or "",
+                button_payload=button_payload or "",
+                button_text=button_text or "",
+                user_message=user_message or "",
+            ):
+                session.flow_state["service_list_page"] = 2
+                msg = "Choose your service (6–11) from the list below."
+                session.add_message(MessageRole.ASSISTANT, msg)
+                return AgentResponse(text=msg, session=session)
+
+            category = detect_service(selection_input)
+            if category is None:
+                msg = (
+                    "Perfect — your contact details are saved."
+                    if int(session.flow_state.get("service_list_page") or 1) < 2
+                    else "Please tap one service from the list below."
+                )
+                session.add_message(MessageRole.ASSISTANT, msg)
+                return AgentResponse(text=msg, session=session)
+
+            session.flow_state.pop("service_list_page", None)
+            consultant_id = CONSULTANT_IDS[category]
+            consultant_name = get_consultant_display_name(category)
+            service_label = get_service_label(category)
+            session.active_consultant = consultant_id
+            se.on_service_selected(session, category)
+
+            client_name = (session.extracted_fields.get("client_name") or "").strip()
+            greet = f"Perfect, {client_name} ✨" if client_name else "Perfect ✨"
+            first_name = consultant_name.split()[0] if consultant_name else "our consultant"
+            handoff = (
+                f"{greet}\n"
+                f"I'm connecting you with {consultant_name}, our {service_label} specialist.\n\n"
+                f"{first_name} will now guide you through a few quick questions "
+                "to understand your requirements better."
+            )
+            handoff = hybrid_flow.append_first_step_to_handoff(session, handoff)
+            session.add_message(MessageRole.ASSISTANT, handoff)
+            await log_event("SERVICE_SELECTED", session_id=session.session_id,
+                            data={"consultant": consultant_id, "service": str(category)})
+            return AgentResponse(text=handoff, session=session)
+
+        if se.is_collecting_qualification(session):
+            session.conversation_stage = ConversationStage.DETAIL_COLLECTION
+            resp = await self._run_hybrid(session, user_message,
+                                        button_text=button_text, button_payload=button_payload, list_id=list_id)
+            if resp:
+                return resp
+            step = hybrid_flow.get_current_step(session)
+            if step:
+                msg = hybrid_flow.format_step_message(step)
+                session.add_message(MessageRole.ASSISTANT, msg)
+                return AgentResponse(text=msg, session=session)
+
+        if se.can_enter_final_review(session):
+            se.enter_final_review(session)
+            recap = format_final_review(session)
+            session.add_message(MessageRole.ASSISTANT, recap)
+            return AgentResponse(text=recap, session=session)
+
+        fallback = "Please answer the current question, or reply *RESTART45* to start over."
+        session.add_message(MessageRole.ASSISTANT, fallback)
+        return AgentResponse(text=fallback, session=session)
+
+
+_controller: ConversationController | None = None
+
+
+def get_controller() -> ConversationController:
+    global _controller
+    if _controller is None:
+        _controller = ConversationController()
+    return _controller

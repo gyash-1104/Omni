@@ -1,0 +1,51 @@
+[
+  {
+    "id": "q1_infrastructure_type",
+    "type": "mcq",
+    "field": "service_q1",
+    "prompt": "What type of farm infrastructure do you need?",
+    "options": [
+      { "label": "Polyhouse / Greenhouse", "value": "polyhouse_greenhouse" },
+      { "label": "Farm Storage / Cold Room", "value": "farm_storage_cold_room" },
+      { "label": "Livestock / Poultry Shed", "value": "livestock_poultry_shed" },
+      { "label": "Farm Road & Boundary", "value": "farm_road_boundary_wall" },
+      { "label": "Integrated Farm Setup", "value": "integrated_farm_infrastructure" }
+    ]
+  },
+  {
+    "id": "q2_land_area",
+    "type": "mcq",
+    "field": "service_q2",
+    "prompt": "What is the land area for development?",
+    "options": [
+      { "label": "Under 1 Acre", "value": "under_1_acre" },
+      { "label": "1 - 5 Acres", "value": "1_5_acres" },
+      { "label": "5 - 20 Acres", "value": "5_20_acres" },
+      { "label": "Above 20 Acres", "value": "above_20_acres" }
+    ]
+  },
+  {
+    "id": "q3_utilities",
+    "type": "mcq",
+    "field": "service_q3",
+    "prompt": "Do you have power and water availability on site?",
+    "options": [
+      { "label": "Yes - power & borewell", "value": "yes_power_borewell" },
+      { "label": "Partial - one available", "value": "partial_one_available" },
+      { "label": "No - need full setup", "value": "no_need_full_setup" },
+      { "label": "Need assessment", "value": "need_assessment" }
+    ]
+  },
+  {
+    "id": "q4_farm_goals",
+    "type": "descriptive",
+    "field": "service_q4",
+    "prompt": "Describe your farm and infrastructure goals including current use, proposed structures, crop or livestock type, and specific requirements."
+  },
+  {
+    "id": "q5_upload_layout",
+    "type": "file_request",
+    "field": "attachments",
+    "prompt": "Upload farm layout, land documents, satellite images, or reference photos."
+  }
+]

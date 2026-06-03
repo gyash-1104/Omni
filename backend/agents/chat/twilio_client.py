@@ -1,0 +1,313 @@
+"""
+TatvaOps – Twilio WhatsApp Sender
+Supports plain text and MCQ-style messages.
+Interactive tap options require Twilio Content templates; falls back to formatted text.
+"""
+from __future__ import annotations
+from typing import Any, Optional
+import json
+
+from backend.config import get_settings
+
+settings = get_settings()
+_twilio_client = None
+
+# Twilio WhatsApp body limit is 1600 chars (error 21617)
+WHATSAPP_MAX_CHARS = 1500
+
+
+def chunk_whatsapp_body(body: str, max_len: int = WHATSAPP_MAX_CHARS) -> list[str]:
+    """Split long text into WhatsApp-safe chunks."""
+    text = (body or "").strip()
+    if not text:
+        return [""]
+    if len(text) <= max_len:
+        return [text]
+
+    chunks: list[str] = []
+    parts = text.split("\n\n")
+    current = ""
+    for part in parts:
+        candidate = f"{current}\n\n{part}".strip() if current else part
+        if len(candidate) <= max_len:
+            current = candidate
+            continue
+        if current:
+            chunks.append(current)
+            current = ""
+        while len(part) > max_len:
+            chunks.append(part[:max_len])
+            part = part[max_len:]
+        current = part
+    if current:
+        chunks.append(current)
+    return chunks or [text[:max_len]]
+
+
+def _get_client():
+    global _twilio_client
+    if _twilio_client is None:
+        try:
+            from twilio.rest import Client
+            _twilio_client = Client(settings.twilio_account_sid, settings.twilio_auth_token)
+        except Exception as e:
+            print(f"[Twilio] Client init error: {e}")
+    return _twilio_client
+
+
+async def send_whatsapp_message(to: str, body: str) -> bool:
+    """Send a plain WhatsApp message (auto-splits if over Twilio limit)."""
+    chunks = chunk_whatsapp_body(body)
+    if len(chunks) == 1:
+        return await send_whatsapp_flow(to, chunks[0], step=None)
+    ok = True
+    total = len(chunks)
+    for i, chunk in enumerate(chunks):
+        prefix = f"📄 Part {i + 1}/{total}\n\n" if total > 1 else ""
+        sent = await send_whatsapp_flow(to, prefix + chunk, step=None)
+        ok = ok and sent
+    return ok
+
+
+async def send_whatsapp_flow(to: str, body: str, step: Optional[dict[str, Any]] = None) -> bool:
+    """
+    Send flow message. For MCQ steps, tries Twilio interactive options when
+    TWILIO_WHATSAPP_QUICK_REPLY=true and Content SID is configured.
+    Otherwise sends formatted text (user replies with number or option name).
+    """
+    if (
+        step
+        and step.get("type") == "mcq"
+        and getattr(settings, "twilio_whatsapp_quick_reply", False)
+        and _should_send_interactive(step)
+    ):
+        options = step.get("options", [])
+        quick_opts = [o for o in options if not _is_other_option(o)]
+        slot_cap = int(step.get("twilio_list_slots") or 0)
+        if slot_cap:
+            quick_opts = quick_opts[:slot_cap]
+        if 1 < len(quick_opts) <= 10:
+            sent = await _send_interactive_options(to, body, quick_opts, step=step)
+            if sent:
+                return True
+    return await _send_plain(to, body)
+
+
+def _resolve_content_sid(step: dict[str, Any]) -> str:
+    sid = str(step.get("twilio_content_sid") or "").strip()
+    if sid:
+        return sid
+    field = str(step.get("field", ""))
+    if field == "service_category":
+        return str(getattr(settings, "twilio_service_selection_content_sid", "") or "").strip()
+    if step.get("use_dynamic_list"):
+        return (
+            str(getattr(settings, "twilio_service_selection_content_sid", "") or "").strip()
+            or str(getattr(settings, "twilio_whatsapp_interactive_content_sid", "") or "").strip()
+        )
+    return ""
+
+
+def _should_send_interactive(step: dict[str, Any]) -> bool:
+    field = str(step.get("field", ""))
+    if field.startswith("__edit__"):
+        return False
+    if step.get("twilio_content_sid") or step.get("use_dynamic_list"):
+        return bool(_resolve_content_sid(step))
+    if field == "service_category":
+        return bool(getattr(settings, "twilio_service_selection_content_sid", ""))
+    return False
+
+
+def enrich_whatsapp_mcq_step(step: Optional[dict[str, Any]]) -> Optional[dict[str, Any]]:
+    """
+    Enable WhatsApp list-picker for MCQ steps that only have plain JSON options
+    (e.g. irrigation, plumbing) using the shared dynamic list template.
+    """
+    if not step or step.get("type") != "mcq":
+        return step
+    if str(step.get("field", "")).startswith("__edit__"):
+        return step
+    if not getattr(settings, "twilio_whatsapp_quick_reply", False):
+        return step
+
+    options = step.get("options") or []
+    quick_opts = [o for o in options if not _is_other_option(o)]
+    if len(quick_opts) < 2:
+        return step
+
+    from backend.schemas.service import WHATSAPP_SERVICE_LIST_ROWS
+
+    max_slots = min(len(quick_opts), WHATSAPP_SERVICE_LIST_ROWS, 10)
+    out = dict(step)
+    out["twilio_list_slots"] = max_slots
+    prompt = str(step.get("prompt") or "Please choose one option.").strip()
+    if not out.get("twilio_list_prompt"):
+        out["twilio_list_prompt"] = _twilio_list_prompt({"prompt": prompt})
+
+    enriched_options: list[dict[str, Any]] = []
+    for opt in quick_opts[:max_slots]:
+        label = str(opt.get("label") or "")
+        enriched_options.append({
+            **opt,
+            "whatsapp_label": _twilio_list_label(label),
+        })
+    out["options"] = enriched_options
+
+    if out.get("twilio_content_sid"):
+        return out
+
+    dynamic_sid = (
+        str(getattr(settings, "twilio_service_selection_content_sid", "") or "").strip()
+        or str(getattr(settings, "twilio_whatsapp_interactive_content_sid", "") or "").strip()
+    )
+    if not dynamic_sid or len(quick_opts) > max_slots:
+        return step
+
+    out["use_dynamic_list"] = True
+    out["require_content_variables"] = True
+    out["twilio_content_sid"] = dynamic_sid
+    return out
+
+
+def _is_other_option(opt: dict) -> bool:
+    val = str(opt.get("value", "")).lower()
+    label = str(opt.get("label", "")).lower()
+    return val == "__other__" or label == "other" or label.startswith("other ")
+
+
+async def _send_plain(to: str, body: str) -> bool:
+    client = _get_client()
+    if not client:
+        print(f"[Twilio] Not configured — would send to {to}: {body[:80]}")
+        return False
+    try:
+        from backend.utils.retry import with_retry
+        await with_retry(_send_once, client=client, to=to, body=body, session_id=to)
+        return True
+    except Exception as e:
+        print(f"[Twilio] Send error: {e}")
+        return False
+
+
+WHATSAPP_LIST_LABEL_MAX = 24
+
+
+def _twilio_list_label(text: str) -> str:
+    """WhatsApp list-picker row titles are limited to 24 characters."""
+    s = (text or "").strip()
+    if len(s) <= WHATSAPP_LIST_LABEL_MAX:
+        return s or "Option"
+    return s[: WHATSAPP_LIST_LABEL_MAX - 1] + "…"
+
+
+def _twilio_list_prompt(step: dict[str, Any]) -> str:
+    """Single-line list body — use twilio_list_prompt or the last non-empty line of prompt."""
+    if step.get("twilio_list_prompt"):
+        return str(step["twilio_list_prompt"]).strip()
+    raw = str(step.get("prompt") or "Please choose one option.").strip()
+    lines = [ln.strip() for ln in raw.split("\n") if ln.strip()]
+    return lines[-1] if lines else "Please choose one option."
+
+
+def _build_content_variables(step: dict[str, Any], options: list[dict[str, Any]]) -> dict[str, str]:
+    """
+    Build variables for Twilio list-picker templates.
+    Only includes keys used by the template (prompt + option_N_label/value).
+  Fills up to 10 slots when the template defines empty trailing rows.
+    """
+    slot_count = int(step.get("twilio_list_slots") or 10)
+    variables: dict[str, str] = {"prompt": _twilio_list_prompt(step)}
+    quick_opts = [o for o in options if not _is_other_option(o)]
+
+    for i in range(1, slot_count + 1):
+        if i <= len(quick_opts):
+            opt = quick_opts[i - 1]
+            label_src = opt.get("whatsapp_label") or opt.get("label") or ""
+            variables[f"option_{i}_label"] = _twilio_list_label(str(label_src))
+            variables[f"option_{i}_value"] = str(opt.get("value") or opt.get("label") or f"opt_{i}").strip()
+        elif slot_count > len(quick_opts):
+            # Pad only when the Twilio template defines extra empty rows
+            variables[f"option_{i}_label"] = "\u200b"
+            variables[f"option_{i}_value"] = f"__unused_{i}__"
+    return variables
+
+
+async def _send_interactive_options(
+    to: str,
+    body: str,
+    options: list[dict[str, Any]],
+    *,
+    step: dict[str, Any],
+) -> bool:
+    """Send interactive WhatsApp options via Twilio Content API."""
+    content_sid = _resolve_content_sid(step)
+    if not content_sid:
+        return False
+    client = _get_client()
+    if not client:
+        return False
+    require_variables = bool(
+        step.get("require_content_variables")
+        or step.get("use_dynamic_list")
+        or str(step.get("field", "")) == "service_category"
+        or str(step.get("field", "")).startswith("service_q")
+    )
+    try:
+        import asyncio
+        loop = asyncio.get_event_loop()
+        content_variables = _build_content_variables(step, options)
+
+        def _create_with_variables():
+            return client.messages.create(
+                from_=settings.twilio_whatsapp_from,
+                to=to,
+                content_sid=content_sid,
+                content_variables=json.dumps(content_variables),
+            )
+
+        def _create_without_variables():
+            return client.messages.create(
+                from_=settings.twilio_whatsapp_from,
+                to=to,
+                content_sid=content_sid,
+            )
+
+        try:
+            await loop.run_in_executor(None, _create_with_variables)
+        except Exception as inner:
+            err = str(inner)
+            if require_variables:
+                print(f"[Twilio] Interactive (variables required) failed: {err}")
+                return False
+            if "Content Variables parameter is invalid" not in err:
+                raise
+            await loop.run_in_executor(None, _create_without_variables)
+        return True
+    except Exception as e:
+        print(f"[Twilio] Interactive send error: {e}")
+        return False
+
+
+async def _send_once(client, to: str, body: str, session_id: str = ""):
+    import asyncio
+    loop = asyncio.get_event_loop()
+
+    def _create():
+        msg = client.messages.create(
+            from_=settings.twilio_whatsapp_from,
+            to=to,
+            body=body,
+        )
+        print(f"[Twilio] API Response | SID: {msg.sid} | Status: {msg.status}")
+        return msg
+
+    await loop.run_in_executor(None, _create)
+
+
+def twiml_response(body: str) -> str:
+    safe = body.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    return (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        "<Response><Message>" + safe + "</Message></Response>"
+    )
