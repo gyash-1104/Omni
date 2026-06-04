@@ -90,7 +90,26 @@ async def send_whatsapp_flow(to: str, body: str, step: Optional[dict[str, Any]] 
             sent = await _send_interactive_options(to, body, quick_opts, step=step)
             if sent:
                 return True
+            print(
+                "[Twilio] Interactive list failed — sending numbered plain-text options. "
+                "Check TWILIO_WHATSAPP_QUICK_REPLY, Content SIDs, and Render logs."
+            )
+            body = _format_mcq_plain_fallback(body, step)
     return await _send_plain(to, body)
+
+
+def _format_mcq_plain_fallback(body: str, step: dict[str, Any]) -> str:
+    """Numbered options when WhatsApp list-picker cannot be sent."""
+    options = [o for o in (step.get("options") or []) if not _is_other_option(o)]
+    if not options:
+        return body
+    header = (body or "").strip() or str(step.get("prompt") or "Please choose one option.").strip()
+    lines = [header, ""]
+    for i, opt in enumerate(options, 1):
+        lines.append(f"{i}. {opt.get('label', '')}")
+    if any(_is_other_option(o) for o in step.get("options") or []):
+        lines.extend(["", "Or type *Other* and describe your requirement."])
+    return "\n".join(lines)
 
 
 def _resolve_content_sid(step: dict[str, Any]) -> str:
@@ -106,6 +125,15 @@ def _resolve_content_sid(step: dict[str, Any]) -> str:
             or str(getattr(settings, "twilio_whatsapp_interactive_content_sid", "") or "").strip()
         )
     return ""
+
+
+def mcq_uses_interactive_delivery(step: Optional[dict[str, Any]]) -> bool:
+    """True when we will send a Twilio list-picker (not plain numbered text)."""
+    if not step or step.get("type") != "mcq":
+        return False
+    if not getattr(settings, "twilio_whatsapp_quick_reply", False):
+        return False
+    return _should_send_interactive(step)
 
 
 def _should_send_interactive(step: dict[str, Any]) -> bool:

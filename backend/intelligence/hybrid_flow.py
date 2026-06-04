@@ -127,7 +127,9 @@ def is_text_only_step(step: dict) -> bool:
 
 
 def format_mcq_message(step: dict) -> str:
-    if step.get("twilio_content_sid") or step.get("use_dynamic_list"):
+    from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
+
+    if mcq_uses_interactive_delivery(step):
         return step.get("prompt", "Please choose one option.")
     options = step.get("options", [])
     lines = [step.get("prompt", "Please choose:"), ""]

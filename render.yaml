@@ -23,6 +23,13 @@ services:
         sync: false
       - key: TWILIO_WHATSAPP_FROM
         sync: false
+      # Required for WhatsApp list-picker buttons (service menu + MCQ questions)
+      - key: TWILIO_WHATSAPP_QUICK_REPLY
+        value: "true"
+      - key: TWILIO_SERVICE_SELECTION_CONTENT_SID
+        sync: false
+      - key: TWILIO_WHATSAPP_INTERACTIVE_CONTENT_SID
+        sync: false
       - key: VAPI_API_KEY
         sync: false
       - key: VAPI_ASSISTANT_ID
