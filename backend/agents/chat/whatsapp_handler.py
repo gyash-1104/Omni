@@ -6,7 +6,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from fastapi import APIRouter, Form, HTTPException, Request, Response, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Request, Response, BackgroundTasks
 
 from backend.config import get_settings
 from backend.schemas.session import Session, ConversationStage
@@ -56,6 +56,14 @@ async def _handle_restart45(session_id: str, phone_number: str) -> str:
     return "Session reset.\n\n" + hybrid_flow.first_client_message()
 
 
+def _twilio_validation_url(request: Request) -> str:
+    """URL Twilio signed — must match the webhook URL in Console (incl. query string)."""
+    url = f"{_settings.base_url.rstrip('/')}{request.scope['path']}"
+    if request.url.query:
+        url = f"{url}?{request.url.query}"
+    return url
+
+
 def _validate_twilio_signature(request: Request, form_params: dict[str, str]) -> None:
     """Validate Twilio signature. BASE_URL must match the URL set in Twilio Console."""
     token = _settings.twilio_auth_token
@@ -69,7 +77,7 @@ def _validate_twilio_signature(request: Request, form_params: dict[str, str]) ->
         return
 
     signature = request.headers.get("X-Twilio-Signature", "")
-    url = f"{_settings.base_url.rstrip('/')}{request.scope['path']}"
+    url = _twilio_validation_url(request)
     validator = RequestValidator(token)
     is_valid = validator.validate(url, form_params, signature)
     if not is_valid:
@@ -81,17 +89,30 @@ def _validate_twilio_signature(request: Request, form_params: dict[str, str]) ->
 async def whatsapp_webhook(
     background_tasks: BackgroundTasks,
     request: Request,
-    From: str = Form(...),
-    Body: str = Form(""),
-    ButtonText: Optional[str] = Form(None),
-    ButtonPayload: Optional[str] = Form(None),
-    ListId: Optional[str] = Form(None),
-    ListTitle: Optional[str] = Form(None),
-    InteractiveData: Optional[str] = Form(None),
-    NumMedia: int = Form(0),
-    MediaUrl0: Optional[str] = Form(None),
-    MediaContentType0: Optional[str] = Form(None),
 ):
+    # Twilio signs every POST field — pass the full form body, not a hand-picked subset.
+    raw_form = await request.form()
+    form_params = {k: str(v) for k, v in raw_form.items()}
+
+    From = form_params.get("From", "")
+    Body = form_params.get("Body", "")
+    ButtonText = form_params.get("ButtonText")
+    ButtonPayload = form_params.get("ButtonPayload")
+    ListId = form_params.get("ListId")
+    ListTitle = form_params.get("ListTitle")
+    InteractiveData = form_params.get("InteractiveData")
+    try:
+        NumMedia = int(form_params.get("NumMedia") or 0)
+    except ValueError:
+        NumMedia = 0
+    MediaUrl0 = form_params.get("MediaUrl0")
+    MediaContentType0 = form_params.get("MediaContentType0")
+
+    if not From:
+        raise HTTPException(status_code=400, detail="Missing From")
+
+    _validate_twilio_signature(request, form_params)
+
     phone_number = From
     resolved_list_id = parse_list_selection_id(
         list_id=ListId or "",
@@ -107,19 +128,6 @@ async def whatsapp_webhook(
         interactive_data=InteractiveData or "",
     )
     session_id = f"wa_{phone_number}"
-
-    form_params = {
-        k: v for k, v in {
-            "From": From,
-            "Body": Body or "",
-            "ButtonText": ButtonText or "",
-            "ButtonPayload": ButtonPayload or "",
-            "ListId": ListId or "",
-            "ListTitle": ListTitle or "",
-            "NumMedia": str(NumMedia),
-        }.items()
-    }
-    _validate_twilio_signature(request, form_params)
 
     client_ip = request.client.host if request.client else "unknown"
     print(f"[WhatsApp] INBOUND ip={client_ip} from={From} body={user_message!r}")
