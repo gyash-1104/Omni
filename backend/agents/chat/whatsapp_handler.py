@@ -39,10 +39,17 @@ def _is_restart_command(message: str) -> bool:
     return _normalize_restart_command(message) == "RESTART45"
 
 
-async def _handle_restart45(session_id: str, phone_number: str) -> str:
-    """Clear session and return AVA welcome (dev reset)."""
+def _session_is_submitted(session: Session) -> bool:
+    return bool(
+        session.summary_generated
+        or session.conversation_stage == ConversationStage.SUMMARY_GENERATED
+    )
+
+
+async def _start_fresh_session(session_id: str, phone_number: str, *, reason: str) -> Session:
+    """Delete stored state and persist a new empty WhatsApp session."""
     await delete_session(session_id)
-    await log_event("SESSION_RESET", session_id=session_id, data={"reason": "RESTART45"})
+    await log_event("SESSION_RESET", session_id=session_id, data={"reason": reason, "channel": "whatsapp"})
     new_session = Session(
         session_id=session_id,
         phone_number=phone_number,
@@ -53,6 +60,12 @@ async def _handle_restart45(session_id: str, phone_number: str) -> str:
         last_active=datetime.utcnow(),
     )
     await save_session(new_session)
+    return new_session
+
+
+async def _handle_restart45(session_id: str, phone_number: str) -> str:
+    """Clear session and return AVA welcome."""
+    await _start_fresh_session(session_id, phone_number, reason="RESTART45")
     return "Session reset.\n\n" + hybrid_flow.first_client_message()
 
 
@@ -134,10 +147,6 @@ async def whatsapp_webhook(
 
     # RESTART45 — reply in TwiML immediately (does not depend on outbound Twilio API / tunnel follow-up)
     if _is_restart_command(user_message):
-        if _settings.environment != "development":
-            deny = "RESTART45 is only available when ENVIRONMENT=development."
-            print(f"[WhatsApp] RESTART45 blocked (env={_settings.environment})")
-            return Response(content=twiml_response(deny), media_type="application/xml")
         reset_msg = await _handle_restart45(session_id, phone_number)
         print(f"[WhatsApp] RESTART45 reset OK for {From}")
         return Response(content=twiml_response(reset_msg), media_type="application/xml")
@@ -197,6 +206,12 @@ async def _handle_whatsapp_message_impl(
     list_id: str = "",
 ):
     session = await get_session(session_id)
+
+    # After enquiry submit, any new message starts a fresh qualification flow.
+    if session and _session_is_submitted(session) and (user_message or num_media > 0):
+        print(f"[WhatsApp] Submitted session restart for {phone_number} msg={user_message!r}")
+        await _start_fresh_session(session_id, phone_number, reason="new_message_after_submit")
+        session = await get_session(session_id)
 
     if session is None:
         session = Session(
@@ -351,5 +366,5 @@ async def whatsapp_webhook_health():
         "ok": True,
         "environment": _settings.environment,
         "base_url": _settings.base_url,
-        "restart_command": "RESTART45 (development only)",
+        "restart_command": "RESTART45 or any message after enquiry submit",
     }
