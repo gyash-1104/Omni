@@ -83,9 +83,9 @@ async def send_whatsapp_flow(to: str, body: str, step: Optional[dict[str, Any]] 
     ):
         options = step.get("options", [])
         quick_opts = [o for o in options if not _is_other_option(o)]
-        slot_cap = int(step.get("twilio_list_slots") or 0)
-        if slot_cap:
-            quick_opts = quick_opts[:slot_cap]
+        opt_cap = int(step.get("twilio_option_count") or step.get("twilio_list_slots") or 0)
+        if opt_cap:
+            quick_opts = quick_opts[:opt_cap]
         if 1 < len(quick_opts) <= 10:
             sent = await _send_interactive_options(to, body, quick_opts, step=step)
             if sent:
@@ -168,7 +168,8 @@ def enrich_whatsapp_mcq_step(step: Optional[dict[str, Any]]) -> Optional[dict[st
 
     max_slots = min(len(quick_opts), WHATSAPP_SERVICE_LIST_ROWS, 10)
     out = dict(step)
-    out["twilio_list_slots"] = max_slots
+    # Option count for labels sent; template row count set below when using dynamic list.
+    out["twilio_option_count"] = max_slots
     prompt = str(step.get("prompt") or "Please choose one option.").strip()
     if not out.get("twilio_list_prompt"):
         out["twilio_list_prompt"] = _twilio_list_prompt({"prompt": prompt})
@@ -189,12 +190,15 @@ def enrich_whatsapp_mcq_step(step: Optional[dict[str, Any]]) -> Optional[dict[st
         str(getattr(settings, "twilio_service_selection_content_sid", "") or "").strip()
         or str(getattr(settings, "twilio_whatsapp_interactive_content_sid", "") or "").strip()
     )
-    if not dynamic_sid or len(quick_opts) > max_slots:
-        return step
+    # Shared template is fixed at WHATSAPP_SERVICE_LIST_ROWS rows — only use it when
+    # every row has a real option; otherwise WhatsApp shows {{option_N_label}} placeholders.
+    if len(quick_opts) != WHATSAPP_SERVICE_LIST_ROWS:
+        return out
 
     out["use_dynamic_list"] = True
     out["require_content_variables"] = True
     out["twilio_content_sid"] = dynamic_sid
+    out["twilio_list_slots"] = WHATSAPP_SERVICE_LIST_ROWS
     return out
 
 
@@ -241,23 +245,26 @@ def _twilio_list_prompt(step: dict[str, Any]) -> str:
 def _build_content_variables(step: dict[str, Any], options: list[dict[str, Any]]) -> dict[str, str]:
     """
     Build variables for Twilio list-picker templates.
-    Only includes keys used by the template (prompt + option_N_label/value).
-  Fills up to 10 slots when the template defines empty trailing rows.
+    Only sends variables for filled options — never pads empty rows.
     """
-    slot_count = int(step.get("twilio_list_slots") or 10)
-    variables: dict[str, str] = {"prompt": _twilio_list_prompt(step)}
-    quick_opts = [o for o in options if not _is_other_option(o)]
+    from backend.schemas.service import WHATSAPP_SERVICE_LIST_ROWS
 
+    quick_opts = [o for o in options if not _is_other_option(o)]
+    if step.get("use_dynamic_list"):
+        slot_count = WHATSAPP_SERVICE_LIST_ROWS
+    elif step.get("twilio_list_slots"):
+        slot_count = int(step["twilio_list_slots"])
+    else:
+        slot_count = len(quick_opts)
+
+    variables: dict[str, str] = {"prompt": _twilio_list_prompt(step)}
     for i in range(1, slot_count + 1):
-        if i <= len(quick_opts):
-            opt = quick_opts[i - 1]
-            label_src = opt.get("whatsapp_label") or opt.get("label") or ""
-            variables[f"option_{i}_label"] = _twilio_list_label(str(label_src))
-            variables[f"option_{i}_value"] = str(opt.get("value") or opt.get("label") or f"opt_{i}").strip()
-        elif slot_count > len(quick_opts):
-            # Pad only when the Twilio template defines extra empty rows
-            variables[f"option_{i}_label"] = "\u200b"
-            variables[f"option_{i}_value"] = f"__unused_{i}__"
+        if i > len(quick_opts):
+            break
+        opt = quick_opts[i - 1]
+        label_src = opt.get("whatsapp_label") or opt.get("label") or ""
+        variables[f"option_{i}_label"] = _twilio_list_label(str(label_src))
+        variables[f"option_{i}_value"] = str(opt.get("value") or opt.get("label") or f"opt_{i}").strip()
     return variables
 
 

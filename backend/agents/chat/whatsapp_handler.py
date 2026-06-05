@@ -317,6 +317,14 @@ async def _handle_whatsapp_message_impl(
             or outbound_step.get("use_dynamic_list")
         )
     )
+    if (
+        outbound_step
+        and outbound_step.get("type") == "mcq"
+        and not uses_interactive_list
+    ):
+        menu_body = hybrid_flow.format_mcq_message(outbound_step)
+        if menu_body not in reply:
+            reply = f"{reply}\n\n{menu_body}".strip() if reply else menu_body
     if uses_interactive_list:
         # Send transition text first, then the list-picker body (like contact-time step).
         prompt_text = str(outbound_step.get("prompt", "")).strip()
