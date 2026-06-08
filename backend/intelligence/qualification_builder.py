@@ -118,7 +118,7 @@ def build_client_details_steps() -> list[dict]:
             "stage": "client_details",
             "type": "mcq",
             "field": "preferred_contact_time",
-            "prompt": "Preferred contact time?",
+            "prompt": "Preferred contact time? (Only if needed)",
             "twilio_content_sid": "HX4e36328276831fc79aa5feb83f0b86a4",
             "options": [
                 {"label": "Morning", "value": "morning"},
