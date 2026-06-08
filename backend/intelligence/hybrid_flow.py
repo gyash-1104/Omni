@@ -376,16 +376,21 @@ def append_first_step_to_handoff(session: Session, handoff_text: str) -> str:
     return f"{handoff_text}\n\n{format_step_message(step)}"
 
 
-def first_client_message() -> str:
-    steps = qb.build_client_details_steps()
-    intro = (
+def ava_intro_text() -> str:
+    return (
         "Hi 👋\n\n"
         "I'm AVA, your TatvaOps assistant.\n\n"
         "TatvaOps helps homeowners build, renovate, and upgrade their homes with trusted experts, transparent workflows, and real-time project support.\n\n"
         "I’ll guide you step-by-step and connect you with the right specialist for your project ✨\n\n"
     )
+
+
+def first_client_message() -> str:
+    steps = qb.build_client_details_steps()
+    intro = ava_intro_text()
     if steps:
-        return intro + format_step_message(steps[0])
+        # AVA intro already welcomes the user — skip the client_details stage bridge here.
+        return intro + format_step_message(steps[0], include_stage=False)
     return intro
 
 

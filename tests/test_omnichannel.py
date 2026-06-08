@@ -1,10 +1,28 @@
 """Omnichannel platform tests."""
+import pytest
+
 from backend.schemas.service import ServiceCategory
 from backend.schemas.session import Session, ConversationStage
 from backend.intelligence.nova_router import detect_service, SERVICE_MENU_PROMPT
 from backend.intelligence import hybrid_flow
 from backend.intelligence import stage_engine as se
 from backend.intelligence.lead_scorer import score_lead
+from backend.intelligence.conversation_controller import ConversationController
+
+
+@pytest.mark.asyncio
+async def test_first_whatsapp_message_shows_ava_intro():
+    session = Session(
+        session_id="wa_whatsapp:+919999999999",
+        phone_number="whatsapp:+919999999999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.ROUTING,
+    )
+    controller = ConversationController()
+    resp = await controller.process_message(session, "Hiii", channel="whatsapp")
+    assert "I'm AVA" in resp.text
+    assert "What is your full name?" in resp.text
+    assert session.extracted_fields.get("client_name") != "Hiii"
 
 
 def test_nova_detect_service_by_number():
