@@ -19,10 +19,11 @@ export default function Login() {
         setToken(res.token)
         navigate('/krsna/dashboard')
       } else {
-        toast.error(res.detail || 'Invalid password')
+        toast.error('Invalid password')
       }
-    } catch {
-      toast.error('Login failed. Check your password.')
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Login failed'
+      toast.error(message.includes('Failed to fetch') ? 'Cannot reach API — check CORS_ORIGINS on Render' : message)
     } finally {
       setLoading(false)
     }

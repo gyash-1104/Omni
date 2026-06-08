@@ -27,6 +27,41 @@ FLOW_FILE_BY_SERVICE: dict[ServiceCategory, str] = {
 # Back-compat alias
 SECTION_TITLES = STAGE_TITLES
 
+# Shared WhatsApp list-picker templates — body uses {{prompt}}; row count must match options.
+# home_interiors q1 (5 rows), home_automation q3 (4 rows)
+_DEFAULT_MCQ_LIST_SID_BY_OPTION_COUNT: dict[int, str] = {
+    5: "HX02f90dcded88254d350a15410e5527ff",
+    4: "HXca88741e7bfefea27eead2c2e5cbc456",
+}
+
+
+def _mcq_option_count(step: dict) -> int:
+    return len([o for o in step.get("options", []) if str(o.get("value", "")).lower() != "__other__"])
+
+
+def _resolve_mcq_twilio_sid(step: dict) -> str | None:
+    """Use flow-specific SID when set; otherwise shared list template for 4/5 options."""
+    explicit = step.get("twilio_content_sid")
+    if explicit:
+        return str(explicit)
+    return _DEFAULT_MCQ_LIST_SID_BY_OPTION_COUNT.get(_mcq_option_count(step))
+
+
+def _build_service_mcq_step(step: dict, *, field: str, step_id: str) -> dict:
+    sid = _resolve_mcq_twilio_sid(step)
+    out = {
+        "id": step_id,
+        "stage": "service_questionnaire",
+        "type": "mcq",
+        "field": field,
+        "prompt": step["prompt"],
+        "options": step.get("options", []),
+    }
+    if sid:
+        out["twilio_content_sid"] = sid
+        out["require_content_variables"] = True
+    return out
+
 
 def _repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
@@ -64,33 +99,9 @@ def _service_questionnaire_steps(category: ServiceCategory) -> list[dict]:
     s4 = _require_step("service_q4", "descriptive")
     s5 = _require_step("attachments", "file_request")
 
-    q1 = {
-        "id": "service_q1",
-        "stage": "service_questionnaire",
-        "type": "mcq",
-        "field": "service_q1",
-        "prompt": s1["prompt"],
-        "twilio_content_sid": s1.get("twilio_content_sid"),
-        "options": s1.get("options", []),
-    }
-    q2 = {
-        "id": "service_q2",
-        "stage": "service_questionnaire",
-        "type": "mcq",
-        "field": "service_q2",
-        "prompt": s2["prompt"],
-        "twilio_content_sid": s2.get("twilio_content_sid"),
-        "options": s2.get("options", []),
-    }
-    q3 = {
-        "id": "service_q3",
-        "stage": "service_questionnaire",
-        "type": "mcq",
-        "field": "service_q3",
-        "prompt": s3["prompt"],
-        "twilio_content_sid": s3.get("twilio_content_sid"),
-        "options": s3.get("options", []),
-    }
+    q1 = _build_service_mcq_step(s1, field="service_q1", step_id="service_q1")
+    q2 = _build_service_mcq_step(s2, field="service_q2", step_id="service_q2")
+    q3 = _build_service_mcq_step(s3, field="service_q3", step_id="service_q3")
     q4 = {
         "id": "service_q4",
         "stage": "service_questionnaire",
@@ -118,8 +129,10 @@ def build_client_details_steps() -> list[dict]:
             "stage": "client_details",
             "type": "mcq",
             "field": "preferred_contact_time",
-            "prompt": "Preferred contact time? (Only if needed)",
-            "twilio_content_sid": "HX4e36328276831fc79aa5feb83f0b86a4",
+            "prompt": "Preferred contact time? (only if Needed)",
+            # Plain numbered options — dedicated Twilio list template body is static
+            # and cannot show the parenthetical note from code.
+            "force_plain_mcq": True,
             "options": [
                 {"label": "Morning", "value": "morning"},
                 {"label": "Afternoon", "value": "afternoon"},

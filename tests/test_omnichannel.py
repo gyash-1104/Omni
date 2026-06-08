@@ -156,6 +156,27 @@ def test_no_sqft_in_technical_stage():
     assert "tech_room_configuration" in fields
 
 
+def test_farm_infrastructure_mcq_uses_whatsapp_list_template():
+    from backend.intelligence.qualification_builder import _service_questionnaire_steps
+    from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
+
+    steps = _service_questionnaire_steps(ServiceCategory.FARM_INFRASTRUCTURE)
+    q1 = next(s for s in steps if s["field"] == "service_q1")
+    assert q1["twilio_content_sid"] == "HX02f90dcded88254d350a15410e5527ff"
+    assert q1.get("require_content_variables") is True
+    assert mcq_uses_interactive_delivery(q1) is True
+
+
+def test_preferred_contact_time_prompt_includes_optional_note():
+    from backend.intelligence.qualification_builder import build_client_details_steps
+    from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
+
+    step = next(s for s in build_client_details_steps() if s["field"] == "preferred_contact_time")
+    assert "(only if Needed)" in step["prompt"]
+    assert step.get("force_plain_mcq") is True
+    assert mcq_uses_interactive_delivery(step) is False
+
+
 def test_mcq_in_current_stage_only():
     session = Session(
         session_id="t", phone_number="+1",

@@ -38,12 +38,19 @@ async function fetchAdmin(path: string, options: RequestInit = {}) {
 }
 
 export const api = {
-  login: (password: string) =>
-    fetch(`${BASE_URL}/admin/login`, {
+  login: async (password: string) => {
+    const res = await fetch(`${BASE_URL}/admin/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ password }),
-    }).then(r => r.json()),
+    })
+    const data = await res.json().catch(() => ({}))
+    if (!res.ok) {
+      const detail = typeof data.detail === 'string' ? data.detail : 'Invalid password'
+      throw new Error(detail)
+    }
+    return data
+  },
 
   dashboard: () => fetchAdmin('/admin/dashboard'),
   sessions: () => fetchAdmin('/admin/sessions'),

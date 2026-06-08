@@ -66,8 +66,8 @@ class Settings(BaseSettings):
     # Public-facing base URL — used by Vapi to self-reference the webhook URL
     # Set this to your deployed domain, e.g. https://aadhya.onrender.com
     base_url: str = "http://localhost:8000"
-    # Allowed CORS origins — comma-separated list, e.g. https://admin.tatvaops.com
-    # Use * only during local development
+    # Allowed CORS origins — comma-separated, e.g. https://omni-rho-snowy.vercel.app
+    # Must be origin only (scheme + host + port). Do NOT append paths like /krsna.
     cors_origins: str = "*"
 
     @property

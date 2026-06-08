@@ -137,6 +137,8 @@ def mcq_uses_interactive_delivery(step: Optional[dict[str, Any]]) -> bool:
 
 
 def _should_send_interactive(step: dict[str, Any]) -> bool:
+    if step.get("force_plain_mcq"):
+        return False
     field = str(step.get("field", ""))
     if field.startswith("__edit__"):
         return False
@@ -184,6 +186,8 @@ def enrich_whatsapp_mcq_step(step: Optional[dict[str, Any]]) -> Optional[dict[st
     out["options"] = enriched_options
 
     if out.get("twilio_content_sid"):
+        if out.get("require_content_variables") or str(out.get("field", "")).startswith("service_q"):
+            out["require_content_variables"] = True
         return out
 
     dynamic_sid = (
