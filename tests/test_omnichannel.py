@@ -156,6 +156,19 @@ def test_no_sqft_in_technical_stage():
     assert "tech_room_configuration" in fields
 
 
+def test_farm_infrastructure_four_option_mcq_uses_generic_template(monkeypatch):
+    from backend.intelligence.qualification_builder import _service_questionnaire_steps
+    monkeypatch.setenv("TWILIO_WHATSAPP_INTERACTIVE_CONTENT_SID", "HXgeneric4optiontemplate")
+    from backend.config import get_settings
+    get_settings.cache_clear()
+
+    steps = _service_questionnaire_steps(ServiceCategory.FARM_INFRASTRUCTURE)
+    q2 = next(s for s in steps if s["field"] == "service_q2")
+    assert q2["twilio_content_sid"] == "HXgeneric4optiontemplate"
+    assert q2["twilio_list_slots"] == 4
+    assert "HXca88741e7bfefea27eead2c2e5cbc456" not in str(q2["twilio_content_sid"])
+
+
 def test_farm_infrastructure_mcq_uses_whatsapp_list_template():
     from backend.intelligence.qualification_builder import _service_questionnaire_steps
     from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
@@ -173,7 +186,7 @@ def test_preferred_contact_time_uses_whatsapp_list_template():
 
     step = next(s for s in build_client_details_steps() if s["field"] == "preferred_contact_time")
     assert "(only if Needed)" in step["prompt"]
-    assert step["twilio_content_sid"] == "HXca88741e7bfefea27eead2c2e5cbc456"
+    assert step["twilio_content_sid"] == "HX4e36328276831fc79aa5feb83f0b86a4"
     assert step.get("require_content_variables") is True
     assert step.get("twilio_list_prompt") == step["prompt"]
     assert mcq_uses_interactive_delivery(step) is True

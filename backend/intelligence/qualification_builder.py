@@ -27,12 +27,23 @@ FLOW_FILE_BY_SERVICE: dict[ServiceCategory, str] = {
 # Back-compat alias
 SECTION_TITLES = STAGE_TITLES
 
-# Shared WhatsApp list-picker templates — body uses {{prompt}}; row count must match options.
-# home_interiors q1 (5 rows), home_automation q3 (4 rows)
+# Shared WhatsApp list-picker templates for service MCQs (variable {{prompt}} + options).
+# Do NOT reuse service-specific SIDs (e.g. home_automation q3) — those have static body/rows.
+CONTACT_TIME_TWILIO_CONTENT_SID = "HX4e36328276831fc79aa5feb83f0b86a4"
 _DEFAULT_MCQ_LIST_SID_BY_OPTION_COUNT: dict[int, str] = {
     5: "HX02f90dcded88254d350a15410e5527ff",
-    4: "HXca88741e7bfefea27eead2c2e5cbc456",
 }
+
+
+def _generic_mcq_list_sid(option_count: int) -> str | None:
+    """Fully variable list template from env — for 4-option service MCQs only."""
+    if option_count != 4:
+        return _DEFAULT_MCQ_LIST_SID_BY_OPTION_COUNT.get(option_count)
+    from backend.config import get_settings
+    generic = str(get_settings().twilio_whatsapp_interactive_content_sid or "").strip()
+    if generic:
+        return generic
+    return _DEFAULT_MCQ_LIST_SID_BY_OPTION_COUNT.get(option_count)
 
 
 def _mcq_option_count(step: dict) -> int:
@@ -40,11 +51,14 @@ def _mcq_option_count(step: dict) -> int:
 
 
 def _resolve_mcq_twilio_sid(step: dict) -> str | None:
-    """Use flow-specific SID when set; otherwise shared list template for 4/5 options."""
+    """Use flow-specific SID when set; otherwise shared variable list templates."""
     explicit = step.get("twilio_content_sid")
     if explicit:
         return str(explicit)
-    return _DEFAULT_MCQ_LIST_SID_BY_OPTION_COUNT.get(_mcq_option_count(step))
+    if step.get("field") == "preferred_contact_time":
+        return CONTACT_TIME_TWILIO_CONTENT_SID
+    count = _mcq_option_count(step)
+    return _generic_mcq_list_sid(count)
 
 
 def _enrich_mcq_step(step: dict) -> dict:
@@ -58,6 +72,10 @@ def _enrich_mcq_step(step: dict) -> dict:
     out["twilio_content_sid"] = sid
     out["require_content_variables"] = True
     out["twilio_list_prompt"] = str(step.get("prompt") or "").strip()
+    from backend.config import get_settings
+    generic = str(get_settings().twilio_whatsapp_interactive_content_sid or "").strip()
+    if sid == generic:
+        out["twilio_list_slots"] = _mcq_option_count(step)
     return out
 
 
@@ -75,6 +93,10 @@ def _build_service_mcq_step(step: dict, *, field: str, step_id: str) -> dict:
         out["twilio_content_sid"] = sid
         out["require_content_variables"] = True
         out["twilio_list_prompt"] = str(step.get("prompt") or "").strip()
+        from backend.config import get_settings
+        generic = str(get_settings().twilio_whatsapp_interactive_content_sid or "").strip()
+        if sid == generic:
+            out["twilio_list_slots"] = _mcq_option_count(step)
     return out
 
 
