@@ -167,14 +167,16 @@ def test_farm_infrastructure_mcq_uses_whatsapp_list_template():
     assert mcq_uses_interactive_delivery(q1) is True
 
 
-def test_preferred_contact_time_prompt_includes_optional_note():
+def test_preferred_contact_time_uses_whatsapp_list_template():
     from backend.intelligence.qualification_builder import build_client_details_steps
     from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
 
     step = next(s for s in build_client_details_steps() if s["field"] == "preferred_contact_time")
     assert "(only if Needed)" in step["prompt"]
-    assert step.get("force_plain_mcq") is True
-    assert mcq_uses_interactive_delivery(step) is False
+    assert step["twilio_content_sid"] == "HXca88741e7bfefea27eead2c2e5cbc456"
+    assert step.get("require_content_variables") is True
+    assert step.get("twilio_list_prompt") == step["prompt"]
+    assert mcq_uses_interactive_delivery(step) is True
 
 
 def test_mcq_in_current_stage_only():

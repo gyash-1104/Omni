@@ -47,6 +47,20 @@ def _resolve_mcq_twilio_sid(step: dict) -> str | None:
     return _DEFAULT_MCQ_LIST_SID_BY_OPTION_COUNT.get(_mcq_option_count(step))
 
 
+def _enrich_mcq_step(step: dict) -> dict:
+    """Attach shared WhatsApp list template when MCQ should use Choose option."""
+    if step.get("type") != "mcq" or step.get("force_plain_mcq"):
+        return step
+    sid = _resolve_mcq_twilio_sid(step)
+    if not sid:
+        return step
+    out = dict(step)
+    out["twilio_content_sid"] = sid
+    out["require_content_variables"] = True
+    out["twilio_list_prompt"] = str(step.get("prompt") or "").strip()
+    return out
+
+
 def _build_service_mcq_step(step: dict, *, field: str, step_id: str) -> dict:
     sid = _resolve_mcq_twilio_sid(step)
     out = {
@@ -60,6 +74,7 @@ def _build_service_mcq_step(step: dict, *, field: str, step_id: str) -> dict:
     if sid:
         out["twilio_content_sid"] = sid
         out["require_content_variables"] = True
+        out["twilio_list_prompt"] = str(step.get("prompt") or "").strip()
     return out
 
 
@@ -124,22 +139,19 @@ def build_client_details_steps() -> list[dict]:
         {"id": "cd_city", "stage": "client_details", "type": "descriptive", "field": "city", "prompt": "Which city are you located in?"},
         {"id": "cd_property_loc", "stage": "client_details", "type": "descriptive", "field": "property_location", "prompt": "Where is your property located? (City, Locality)"},
         {"id": "cd_email", "stage": "client_details", "type": "descriptive", "field": "email", "prompt": "Email address (optional). You can type *skip*.", "optional": True},
-        {
+        _enrich_mcq_step({
             "id": "cd_contact_time",
             "stage": "client_details",
             "type": "mcq",
             "field": "preferred_contact_time",
             "prompt": "Preferred contact time? (only if Needed)",
-            # Plain numbered options — dedicated Twilio list template body is static
-            # and cannot show the parenthetical note from code.
-            "force_plain_mcq": True,
             "options": [
                 {"label": "Morning", "value": "morning"},
                 {"label": "Afternoon", "value": "afternoon"},
                 {"label": "Evening", "value": "evening"},
                 {"label": "Night", "value": "night"},
             ],
-        },
+        }),
     ]
 
 

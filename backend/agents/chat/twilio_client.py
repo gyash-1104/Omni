@@ -186,7 +186,7 @@ def enrich_whatsapp_mcq_step(step: Optional[dict[str, Any]]) -> Optional[dict[st
     out["options"] = enriched_options
 
     if out.get("twilio_content_sid"):
-        if out.get("require_content_variables") or str(out.get("field", "")).startswith("service_q"):
+        if out.get("require_content_variables") or str(out.get("field", "")).startswith("service_q") or str(out.get("field", "")) == "preferred_contact_time":
             out["require_content_variables"] = True
         return out
 
