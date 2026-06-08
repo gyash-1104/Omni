@@ -8,6 +8,14 @@ from backend.intelligence import hybrid_flow
 from backend.intelligence import stage_engine as se
 from backend.intelligence.lead_scorer import score_lead
 from backend.intelligence.conversation_controller import ConversationController
+from backend.agents.chat.whatsapp_handler import _is_new_enquiry_intent, _is_post_submit_polite_reply
+
+
+def test_post_submit_message_intent():
+    assert _is_post_submit_polite_reply("Thank you")
+    assert not _is_new_enquiry_intent("Thank you")
+    assert _is_new_enquiry_intent("Hello")
+    assert _is_new_enquiry_intent("Hi there")
 
 
 @pytest.mark.asyncio
@@ -23,6 +31,22 @@ async def test_first_whatsapp_message_shows_ava_intro():
     assert "I'm AVA" in resp.text
     assert "What is your full name?" in resp.text
     assert session.extracted_fields.get("client_name") != "Hiii"
+
+
+@pytest.mark.asyncio
+async def test_thank_you_after_submit_does_not_restart_flow():
+    session = Session(
+        session_id="wa_whatsapp:+919999999999",
+        phone_number="whatsapp:+919999999999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.SUMMARY_GENERATED,
+        summary_generated=True,
+    )
+    controller = ConversationController()
+    resp = await controller.process_message(session, "Thank you", channel="whatsapp")
+    assert "I'm AVA" not in resp.text
+    assert "You're welcome" in resp.text
+    assert session.summary_generated is True
 
 
 def test_nova_detect_service_by_number():

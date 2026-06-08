@@ -35,8 +35,32 @@ def _normalize_restart_command(message: str) -> str:
     return (message or "").strip().upper().replace(" ", "")
 
 
+def _normalize_user_text(message: str) -> str:
+    return (message or "").strip().upper().replace(" ", "")
+
+
 def _is_restart_command(message: str) -> bool:
     return _normalize_restart_command(message) == "RESTART45"
+
+
+def _is_post_submit_polite_reply(message: str) -> bool:
+    """Thanks / OK after submit — do not start a new qualification flow."""
+    norm = _normalize_user_text(message)
+    if not norm:
+        return False
+    polite_prefixes = ("THANK", "THX", "TY", "OK", "OKAY", "GOTIT", "CHEERS", "COOL")
+    return any(norm.startswith(p) for p in polite_prefixes)
+
+
+def _is_new_enquiry_intent(message: str) -> bool:
+    """Explicit signal to start a fresh enquiry after a previous submit."""
+    norm = _normalize_user_text(message)
+    if not norm:
+        return False
+    if norm in ("NEWENQUIRY", "NEWPROJECT", "STARTOVER", "STARTAGAIN"):
+        return True
+    greeting_starts = ("HI", "HELLO", "HEY", "HLO", "HLW")
+    return any(norm.startswith(g) for g in greeting_starts)
 
 
 def _session_is_submitted(session: Session) -> bool:
@@ -207,10 +231,17 @@ async def _handle_whatsapp_message_impl(
 ):
     session = await get_session(session_id)
 
-    # After enquiry submit, any new message starts a fresh qualification flow.
-    if session and _session_is_submitted(session) and (user_message or num_media > 0):
-        print(f"[WhatsApp] Submitted session restart for {phone_number} msg={user_message!r}")
-        await _start_fresh_session(session_id, phone_number, reason="new_message_after_submit")
+    # After submit: only greetings / explicit new-enquiry phrases restart AVA flow.
+    # Polite replies (Thank you, OK, etc.) keep the submitted session.
+    if (
+        session
+        and _session_is_submitted(session)
+        and (user_message or num_media > 0)
+        and _is_new_enquiry_intent(user_message)
+        and not _is_post_submit_polite_reply(user_message)
+    ):
+        print(f"[WhatsApp] New enquiry restart for {phone_number} msg={user_message!r}")
+        await _start_fresh_session(session_id, phone_number, reason="new_enquiry_after_submit")
         session = await get_session(session_id)
 
     if session is None:
