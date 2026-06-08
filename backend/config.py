@@ -48,6 +48,8 @@ class Settings(BaseSettings):
     upstash_redis_rest_url: str = ""
     upstash_redis_rest_token: str = ""
     session_ttl_hours: int = 24
+    # End in-progress WhatsApp/voice chats after this many minutes without a user reply
+    session_idle_timeout_minutes: int = 5
 
     # Supabase
     supabase_url: str = ""

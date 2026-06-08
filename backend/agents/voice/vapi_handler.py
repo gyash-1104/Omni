@@ -14,6 +14,11 @@ from backend.storage.redis_store import get_session, save_session
 from backend.storage import supabase_store
 from backend.agents.voice.voice_response_optimizer import optimize_for_voice
 from backend.utils.logger import log_event
+from backend.utils.session_idle import (
+    is_session_idle_expired,
+    idle_timeout_notice,
+    start_fresh_session,
+)
 
 router = APIRouter()
 
@@ -119,6 +124,12 @@ async def vapi_chat_completions(request: Request):
 
     # Load or create session
     session = await get_session(session_id)
+    idle_reset = False
+    if session and is_session_idle_expired(session):
+        await start_fresh_session(session_id, phone, channel="voice", reason="idle_timeout")
+        session = await get_session(session_id)
+        idle_reset = True
+
     if session is None:
         session = Session(
             session_id=session_id,
@@ -148,6 +159,8 @@ async def vapi_chat_completions(request: Request):
 
     # Optimize for voice
     voice_text = optimize_for_voice(agent_response.text)
+    if idle_reset:
+        voice_text = optimize_for_voice(idle_timeout_notice() + agent_response.text)
 
     # Persist
     await save_session(agent_response.session)

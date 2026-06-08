@@ -9,6 +9,35 @@ from backend.intelligence import stage_engine as se
 from backend.intelligence.lead_scorer import score_lead
 from backend.intelligence.conversation_controller import ConversationController
 from backend.agents.chat.whatsapp_handler import _is_new_enquiry_intent, _is_post_submit_polite_reply
+from backend.utils.session_idle import is_session_idle_expired, idle_timeout_notice
+from datetime import datetime, timedelta
+
+
+def test_session_idle_expired_after_five_minutes():
+    session = Session(
+        session_id="wa_test",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+        last_active=datetime.utcnow() - timedelta(minutes=6),
+    )
+    assert is_session_idle_expired(session) is True
+
+
+def test_submitted_session_not_idle_expired():
+    session = Session(
+        session_id="wa_test",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.SUMMARY_GENERATED,
+        summary_generated=True,
+        last_active=datetime.utcnow() - timedelta(hours=2),
+    )
+    assert is_session_idle_expired(session) is False
+
+
+def test_idle_timeout_notice_text():
+    assert "5 minutes" in idle_timeout_notice()
 
 
 def test_post_submit_message_intent():

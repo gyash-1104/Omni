@@ -15,7 +15,7 @@ from backend.intelligence import hybrid_flow
 from backend.intelligence import edit_flow
 from backend.intelligence import stage_engine as se
 from backend.intelligence.nova_router import get_service_selection_outbound_step
-from backend.storage.redis_store import get_session, save_session, delete_session
+from backend.storage.redis_store import get_session, save_session
 from backend.storage import supabase_store
 from backend.storage.media_store import save_attachment
 from backend.agents.chat.twilio_client import (
@@ -26,6 +26,11 @@ from backend.agents.chat.twilio_client import (
 )
 from backend.agents.chat.whatsapp_interactive import build_inbound_user_message, parse_list_selection_id
 from backend.utils.logger import log_event
+from backend.utils.session_idle import (
+    is_session_idle_expired,
+    idle_timeout_notice,
+    start_fresh_session,
+)
 
 router = APIRouter()
 _settings = get_settings()
@@ -70,26 +75,9 @@ def _session_is_submitted(session: Session) -> bool:
     )
 
 
-async def _start_fresh_session(session_id: str, phone_number: str, *, reason: str) -> Session:
-    """Delete stored state and persist a new empty WhatsApp session."""
-    await delete_session(session_id)
-    await log_event("SESSION_RESET", session_id=session_id, data={"reason": reason, "channel": "whatsapp"})
-    new_session = Session(
-        session_id=session_id,
-        phone_number=phone_number,
-        channel="whatsapp",
-        conversation_stage=ConversationStage.ROUTING,
-        flow_state={"current_stage": "ava_intro", "completed_stages": [], "pending_fields": []},
-        created_at=datetime.utcnow(),
-        last_active=datetime.utcnow(),
-    )
-    await save_session(new_session)
-    return new_session
-
-
 async def _handle_restart45(session_id: str, phone_number: str) -> str:
     """Clear session and return EVA welcome."""
-    await _start_fresh_session(session_id, phone_number, reason="RESTART45")
+    await start_fresh_session(session_id, phone_number, reason="RESTART45")
     return "Session reset.\n\n" + hybrid_flow.first_client_message()
 
 
@@ -230,6 +218,14 @@ async def _handle_whatsapp_message_impl(
     list_id: str = "",
 ):
     session = await get_session(session_id)
+    idle_reset = False
+
+    # In-progress chat idle > N minutes — clear session; next reply starts from EVA intro.
+    if session and (user_message or num_media > 0) and is_session_idle_expired(session):
+        print(f"[WhatsApp] Idle timeout reset for {phone_number} (>{_settings.session_idle_timeout_minutes}m)")
+        await start_fresh_session(session_id, phone_number, reason="idle_timeout")
+        session = await get_session(session_id)
+        idle_reset = True
 
     # After submit: only greetings / explicit new-enquiry phrases restart EVA flow.
     # Polite replies (Thank you, OK, etc.) keep the submitted session.
@@ -241,7 +237,7 @@ async def _handle_whatsapp_message_impl(
         and not _is_post_submit_polite_reply(user_message)
     ):
         print(f"[WhatsApp] New enquiry restart for {phone_number} msg={user_message!r}")
-        await _start_fresh_session(session_id, phone_number, reason="new_enquiry_after_submit")
+        await start_fresh_session(session_id, phone_number, reason="new_enquiry_after_submit")
         session = await get_session(session_id)
 
     if session is None:
@@ -341,6 +337,8 @@ async def _handle_whatsapp_message_impl(
     if not reply:
         print(f"[WhatsApp] Empty reply for message={user_message!r}")
         reply = "Thanks — could you repeat that? Please continue with the current step."
+    if idle_reset:
+        reply = idle_timeout_notice() + reply
 
     session_out = agent_response.session
     if edit_flow.is_active(session_out):
