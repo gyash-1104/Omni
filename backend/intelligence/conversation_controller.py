@@ -39,7 +39,7 @@ def _is_off_topic(message: str) -> bool:
 
 
 def _is_first_assistant_turn(session: Session) -> bool:
-    """True until AVA has sent at least one reply in this session."""
+    """True until EVA has sent at least one reply in this session."""
     return not any(m.role == MessageRole.ASSISTANT for m in session.conversation_history)
 
 
@@ -208,7 +208,7 @@ class ConversationController:
 
         if se.needs_client_details(session) and not session.flow_state.get("final_review_shown"):
             se.start_client_stage(session)
-            # First inbound message (Hi/Hello/etc.) — send AVA welcome + first question;
+            # First inbound message (Hi/Hello/etc.) — send EVA welcome + first question;
             # do not treat the greeting as client_name or skip straight to city.
             if _is_first_assistant_turn(session):
                 intro = hybrid_flow.first_client_message()

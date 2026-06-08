@@ -1,5 +1,5 @@
 """
-AVA receptionist: service menu, intent detection, consultant handoff.
+EVA receptionist: service menu, intent detection, consultant handoff.
 """
 from __future__ import annotations
 import re
@@ -18,9 +18,9 @@ from backend.schemas.session import Session, ConversationStage, MessageRole
 from backend.intelligence.consultants.registry import get_opening_message, get_service_label
 from backend.intelligence.consultants.personas import PERSONAS
 
-AVA_WELCOME = """Hi 👋
+EVA_WELCOME = """Hi 👋
 
-I'm AVA, your TatvaOps assistant.
+I'm EVA, your TatvaOps assistant.
 
 TatvaOps helps homeowners build, renovate, and upgrade their homes with trusted experts, transparent workflows, and real-time project support.
 
@@ -218,7 +218,7 @@ def service_selection_step() -> dict:
 def edit_service_selection_step() -> dict:
     """
     Service picker during Edit Details — plain-text bullets only.
-    Must not use field=service_category or the AVA welcome Twilio template is sent.
+    Must not use field=service_category or the EVA welcome Twilio template is sent.
     """
     return {
         "id": "edit_service_selection",
@@ -229,9 +229,9 @@ def edit_service_selection_step() -> dict:
     }
 
 
-def handle_ava_turn(session: Session, user_message: str) -> Tuple[str, bool]:
+def handle_eva_turn(session: Session, user_message: str) -> Tuple[str, bool]:
     """
-    Process a message while in AVA routing stage.
+    Process a message while in EVA routing stage.
     Returns (response_text, routed_to_consultant).
     """
     if session.conversation_stage != ConversationStage.ROUTING:
@@ -243,7 +243,7 @@ def handle_ava_turn(session: Session, user_message: str) -> Tuple[str, bool]:
             m.role == MessageRole.ASSISTANT for m in session.conversation_history
         )
         if not has_assistant:
-            return AVA_WELCOME, False
+            return EVA_WELCOME, False
         return (
             "I didn't quite catch which service you need. "
             "Please reply with a number from 1 to 11, or the service name "
@@ -269,7 +269,7 @@ def handle_ava_turn(session: Session, user_message: str) -> Tuple[str, bool]:
     return handoff, True
 
 
-def needs_ava(session: Session) -> bool:
+def needs_eva(session: Session) -> bool:
     return (
         session.active_consultant is None
         or session.conversation_stage == ConversationStage.ROUTING

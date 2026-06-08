@@ -36,7 +36,7 @@ async def vapi_webhook(request: Request):
     if msg_type == "assistant-request":
         # Vapi is asking for assistant config — return our ElevenLabs voice config
         return _assistant_config_response(
-            "Hello, welcome to TatvaOps. I'm AVA. "
+            "Hello, welcome to TatvaOps. I'm EVA. "
             "Which service do you need? Construction, interiors, painting, electrical, solar, or home automation?"
         )
 

@@ -1,6 +1,6 @@
 """
 TatvaOps – WhatsApp Webhook Handler (Twilio)
-AVA routing + specialized consultants + media uploads.
+EVA routing + specialized consultants + media uploads.
 """
 from __future__ import annotations
 from datetime import datetime
@@ -88,7 +88,7 @@ async def _start_fresh_session(session_id: str, phone_number: str, *, reason: st
 
 
 async def _handle_restart45(session_id: str, phone_number: str) -> str:
-    """Clear session and return AVA welcome."""
+    """Clear session and return EVA welcome."""
     await _start_fresh_session(session_id, phone_number, reason="RESTART45")
     return "Session reset.\n\n" + hybrid_flow.first_client_message()
 
@@ -231,7 +231,7 @@ async def _handle_whatsapp_message_impl(
 ):
     session = await get_session(session_id)
 
-    # After submit: only greetings / explicit new-enquiry phrases restart AVA flow.
+    # After submit: only greetings / explicit new-enquiry phrases restart EVA flow.
     # Polite replies (Thank you, OK, etc.) keep the submitted session.
     if (
         session

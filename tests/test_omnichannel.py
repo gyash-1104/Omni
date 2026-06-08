@@ -19,7 +19,7 @@ def test_post_submit_message_intent():
 
 
 @pytest.mark.asyncio
-async def test_first_whatsapp_message_shows_ava_intro():
+async def test_first_whatsapp_message_shows_eva_intro():
     session = Session(
         session_id="wa_whatsapp:+919999999999",
         phone_number="whatsapp:+919999999999",
@@ -28,7 +28,7 @@ async def test_first_whatsapp_message_shows_ava_intro():
     )
     controller = ConversationController()
     resp = await controller.process_message(session, "Hiii", channel="whatsapp")
-    assert "I'm AVA" in resp.text
+    assert "I'm EVA" in resp.text
     assert "What is your full name?" in resp.text
     assert session.extracted_fields.get("client_name") != "Hiii"
 
@@ -44,7 +44,7 @@ async def test_thank_you_after_submit_does_not_restart_flow():
     )
     controller = ConversationController()
     resp = await controller.process_message(session, "Thank you", channel="whatsapp")
-    assert "I'm AVA" not in resp.text
+    assert "I'm EVA" not in resp.text
     assert "You're welcome" in resp.text
     assert session.summary_generated is True
 
