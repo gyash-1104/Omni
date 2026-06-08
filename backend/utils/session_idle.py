@@ -31,6 +31,41 @@ def idle_timeout_notice() -> str:
     )
 
 
+def _normalize_msg(message: str) -> str:
+    return (message or "").strip().upper().replace(" ", "")
+
+
+def is_greeting_message(message: str) -> bool:
+    """Hi/Hello-style openers — restart silently at EVA intro without a timeout banner."""
+    norm = _normalize_msg(message)
+    if not norm:
+        return False
+    if norm in ("NEWENQUIRY", "NEWPROJECT", "STARTOVER", "STARTAGAIN"):
+        return True
+    return any(norm.startswith(g) for g in ("HI", "HELLO", "HEY", "HLO", "HLW"))
+
+
+def had_conversation_progress(session: Session) -> bool:
+    """True once the user has moved past the opening welcome."""
+    stage = session.flow_state.get("current_stage", "ava_intro")
+    if stage != "ava_intro":
+        return True
+    if session.turn_count > 0:
+        return True
+    if session.completed_fields:
+        return True
+    if any(m.role.value == "user" for m in session.conversation_history):
+        return True
+    return False
+
+
+def should_prepend_idle_notice(session: Session, user_message: str) -> bool:
+    """Only show the timeout banner when resuming mid-flow, not a fresh EVA start."""
+    if is_greeting_message(user_message):
+        return False
+    return had_conversation_progress(session)
+
+
 async def start_fresh_session(
     session_id: str,
     phone_number: str,

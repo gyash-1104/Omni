@@ -9,7 +9,12 @@ from backend.intelligence import stage_engine as se
 from backend.intelligence.lead_scorer import score_lead
 from backend.intelligence.conversation_controller import ConversationController
 from backend.agents.chat.whatsapp_handler import _is_new_enquiry_intent, _is_post_submit_polite_reply
-from backend.utils.session_idle import is_session_idle_expired, idle_timeout_notice
+from backend.utils.session_idle import (
+    is_session_idle_expired,
+    idle_timeout_notice,
+    should_prepend_idle_notice,
+    is_greeting_message,
+)
 from datetime import datetime, timedelta
 
 
@@ -38,6 +43,45 @@ def test_submitted_session_not_idle_expired():
 
 def test_idle_timeout_notice_text():
     assert "5 minutes" in idle_timeout_notice()
+
+
+def test_greeting_after_idle_does_not_show_timeout_banner():
+    session = Session(
+        session_id="wa_test",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+        flow_state={"current_stage": "client_details"},
+        turn_count=2,
+        last_active=datetime.utcnow() - timedelta(minutes=10),
+    )
+    assert is_greeting_message("hello") is True
+    assert should_prepend_idle_notice(session, "hello") is False
+
+
+def test_mid_flow_answer_after_idle_shows_timeout_banner():
+    session = Session(
+        session_id="wa_test",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+        flow_state={"current_stage": "client_details"},
+        turn_count=2,
+        last_active=datetime.utcnow() - timedelta(minutes=10),
+    )
+    assert should_prepend_idle_notice(session, "Rahul Sharma") is True
+
+
+def test_stale_intro_session_hello_no_timeout_banner():
+    session = Session(
+        session_id="wa_test",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.ROUTING,
+        flow_state={"current_stage": "ava_intro"},
+        last_active=datetime.utcnow() - timedelta(hours=1),
+    )
+    assert should_prepend_idle_notice(session, "hello") is False
 
 
 def test_post_submit_message_intent():

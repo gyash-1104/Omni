@@ -29,6 +29,7 @@ from backend.utils.logger import log_event
 from backend.utils.session_idle import (
     is_session_idle_expired,
     idle_timeout_notice,
+    should_prepend_idle_notice,
     start_fresh_session,
 )
 
@@ -218,14 +219,15 @@ async def _handle_whatsapp_message_impl(
     list_id: str = "",
 ):
     session = await get_session(session_id)
-    idle_reset = False
+    show_idle_notice = False
 
     # In-progress chat idle > N minutes — clear session; next reply starts from EVA intro.
     if session and (user_message or num_media > 0) and is_session_idle_expired(session):
+        stale_session = session
         print(f"[WhatsApp] Idle timeout reset for {phone_number} (>{_settings.session_idle_timeout_minutes}m)")
+        show_idle_notice = should_prepend_idle_notice(stale_session, user_message)
         await start_fresh_session(session_id, phone_number, reason="idle_timeout")
         session = await get_session(session_id)
-        idle_reset = True
 
     # After submit: only greetings / explicit new-enquiry phrases restart EVA flow.
     # Polite replies (Thank you, OK, etc.) keep the submitted session.
@@ -337,7 +339,7 @@ async def _handle_whatsapp_message_impl(
     if not reply:
         print(f"[WhatsApp] Empty reply for message={user_message!r}")
         reply = "Thanks — could you repeat that? Please continue with the current step."
-    if idle_reset:
+    if show_idle_notice:
         reply = idle_timeout_notice() + reply
 
     session_out = agent_response.session
