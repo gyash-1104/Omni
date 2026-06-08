@@ -1,7 +1,9 @@
 // API client for the Aadhya admin panel
-// In dev: Vite proxy handles /admin → localhost:8000 (same-origin, no CORS issues)
-// In production (Vercel): VITE_API_URL points to Render backend
-const BASE_URL = import.meta.env.VITE_API_URL ?? (import.meta.env.DEV ? 'http://localhost:8000' : '')
+// Dev: Vite proxy /admin → localhost:8000
+// Production (Vercel): same-origin /admin → Render via vercel.json rewrite (no CORS)
+const BASE_URL = import.meta.env.DEV
+  ? (import.meta.env.VITE_API_URL || 'http://localhost:8000')
+  : ''
 
 let authToken: string | null = sessionStorage.getItem('aadhya_admin_token')
 

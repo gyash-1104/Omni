@@ -13,6 +13,20 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent
 _ENV_FILE = _PROJECT_ROOT / ".env"
 
 
+from urllib.parse import urlparse
+
+
+def _normalize_cors_origin(origin: str) -> str:
+    """Browser Origin is scheme+host only — strip accidental paths like /krsna."""
+    raw = origin.strip()
+    if not raw or raw == "*":
+        return raw
+    parsed = urlparse(raw)
+    if parsed.scheme and parsed.netloc:
+        return f"{parsed.scheme}://{parsed.netloc}"
+    return raw.rstrip("/")
+
+
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
         env_file=str(_ENV_FILE) if _ENV_FILE.exists() else ".env",
@@ -75,7 +89,14 @@ class Settings(BaseSettings):
         """Parse the comma-separated CORS_ORIGINS env var into a list."""
         if self.cors_origins.strip() == "*":
             return ["*"]
-        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+        seen: set[str] = set()
+        out: List[str] = []
+        for origin in self.cors_origins.split(","):
+            normalized = _normalize_cors_origin(origin)
+            if normalized and normalized not in seen:
+                seen.add(normalized)
+                out.append(normalized)
+        return out
 
 
 @lru_cache

@@ -3,6 +3,10 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
+    {
+      "source": "/admin/:path*",
+      "destination": "https://omni-1-iltl.onrender.com/admin/:path*"
+    },
     { "source": "/krsna/assets/(.*)", "destination": "/assets/$1" },
     { "source": "/krsna", "destination": "/krsna/" },
     { "source": "/krsna/(.*)", "destination": "/index.html" },

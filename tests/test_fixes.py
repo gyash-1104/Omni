@@ -39,6 +39,13 @@ def test_cors_origins_list_custom():
     assert len(result) == 2
 
 
+def test_cors_origins_strip_accidental_path():
+    """CORS_ORIGINS with /krsna path is normalized to origin-only."""
+    import backend.config as cfg_module
+    s = cfg_module.Settings(cors_origins="https://omni-rho-snowy.vercel.app/krsna")
+    assert s.cors_origins_list == ["https://omni-rho-snowy.vercel.app"]
+
+
 # ─── 2. Vapi handler — base_url used for model URL ────────────────────────────
 
 def test_vapi_model_url_uses_base_url(monkeypatch):
