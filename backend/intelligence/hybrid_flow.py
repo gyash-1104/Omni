@@ -363,8 +363,6 @@ def _next_step_message(session: Session) -> Optional[str]:
 
 
 def append_first_step_to_handoff(session: Session, handoff_text: str) -> str:
-    if session.service_category:
-        se.on_service_selected(session, session.service_category)
     step = get_current_step(session)
     if not step:
         return handoff_text

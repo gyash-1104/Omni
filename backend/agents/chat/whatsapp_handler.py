@@ -347,7 +347,11 @@ async def _handle_whatsapp_message_impl(
         outbound_step = edit_flow.get_outbound_step(session_out)
     else:
         outbound_step = hybrid_flow.get_current_step(session_out)
-        if outbound_step is None and se.fs_current_stage(session_out) == "service_selection":
+        if (
+            outbound_step is None
+            and not session_out.service_category
+            and se.fs_current_stage(session_out) == "service_selection"
+        ):
             outbound_step = get_service_selection_outbound_step(session_out)
             uses_list = outbound_step.get("twilio_content_sid") or outbound_step.get("use_dynamic_list")
             if not uses_list:

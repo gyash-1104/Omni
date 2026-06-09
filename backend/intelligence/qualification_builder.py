@@ -27,14 +27,8 @@ FLOW_FILE_BY_SERVICE: dict[ServiceCategory, str] = {
 # Back-compat alias
 SECTION_TITLES = STAGE_TITLES
 
-# Dedicated contact-time list (Morning/Afternoon/Evening/Night) — not shared with service MCQs.
+# Dedicated contact-time list (Morning/Afternoon/Evening/Night).
 CONTACT_TIME_TWILIO_CONTENT_SID = "HX4e36328276831fc79aa5feb83f0b86a4"
-
-
-def _variable_list_template_sid() -> str:
-    """Generic Twilio list with {{prompt}} + {{option_N_label}} — safe for any service MCQ."""
-    from backend.config import get_settings
-    return str(get_settings().twilio_whatsapp_interactive_content_sid or "").strip()
 
 
 def _mcq_option_count(step: dict) -> int:
@@ -45,7 +39,9 @@ def _resolve_mcq_twilio_sid(step: dict) -> str | None:
     """
     Twilio list template for MCQ steps.
     - Flow JSON may define a service-specific SID (home_interiors, electrical, …).
-    - Otherwise use the generic variable template — never borrow another service's static SID.
+    - Contact time uses its dedicated template.
+    - Other service_q steps use plain numbered options — generic/shared SIDs often
+      have static AVA or wrong-service body text and must not be reused.
     """
     explicit = step.get("twilio_content_sid")
     if explicit:
@@ -53,8 +49,6 @@ def _resolve_mcq_twilio_sid(step: dict) -> str | None:
     field = str(step.get("field", ""))
     if field == "preferred_contact_time":
         return CONTACT_TIME_TWILIO_CONTENT_SID
-    if field.startswith("service_q"):
-        return _variable_list_template_sid() or None
     return None
 
 
@@ -62,8 +56,7 @@ def _attach_mcq_list_delivery(out: dict, sid: str, step: dict) -> dict:
     out["twilio_content_sid"] = sid
     out["require_content_variables"] = True
     out["twilio_list_prompt"] = str(step.get("prompt") or "").strip()
-    generic = _variable_list_template_sid()
-    if sid == generic or sid == CONTACT_TIME_TWILIO_CONTENT_SID:
+    if sid == CONTACT_TIME_TWILIO_CONTENT_SID:
         out["twilio_list_slots"] = _mcq_option_count(step)
     return out
 

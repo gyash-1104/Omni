@@ -156,35 +156,52 @@ def test_no_sqft_in_technical_stage():
     assert "tech_room_configuration" in fields
 
 
-def test_farm_infrastructure_four_option_mcq_uses_generic_template(monkeypatch):
+def test_farm_infrastructure_four_option_mcq_uses_plain_text_options():
     from backend.intelligence.qualification_builder import _service_questionnaire_steps
-    monkeypatch.setenv("TWILIO_WHATSAPP_INTERACTIVE_CONTENT_SID", "HXgeneric4optiontemplate")
-    from backend.config import get_settings
-    get_settings.cache_clear()
 
     steps = _service_questionnaire_steps(ServiceCategory.FARM_INFRASTRUCTURE)
     q2 = next(s for s in steps if s["field"] == "service_q2")
-    assert q2["twilio_content_sid"] == "HXgeneric4optiontemplate"
-    assert q2["twilio_list_slots"] == 4
-    assert "HXca88741e7bfefea27eead2c2e5cbc456" not in str(q2["twilio_content_sid"])
+    assert q2["prompt"] == "What is the land area for development?"
+    assert "twilio_content_sid" not in q2
 
 
-def test_farm_infrastructure_mcq_uses_generic_variable_template(monkeypatch):
+def test_farm_infrastructure_mcq_uses_correct_prompt_not_shared_template():
     from backend.intelligence.qualification_builder import _service_questionnaire_steps
-    from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
-    from backend.config import get_settings
-
-    monkeypatch.setenv("TWILIO_WHATSAPP_INTERACTIVE_CONTENT_SID", "HXgenericlisttemplate")
-    get_settings.cache_clear()
 
     steps = _service_questionnaire_steps(ServiceCategory.FARM_INFRASTRUCTURE)
     q1 = next(s for s in steps if s["field"] == "service_q1")
     assert q1["prompt"] == "What type of farm infrastructure do you need?"
-    assert q1["twilio_content_sid"] == "HXgenericlisttemplate"
-    assert q1["twilio_list_slots"] == 5
-    assert q1["twilio_list_prompt"] == q1["prompt"]
-    assert q1["twilio_content_sid"] != "HX02f90dcded88254d350a15410e5527ff"
-    assert mcq_uses_interactive_delivery(q1) is True
+    assert "twilio_content_sid" not in q1
+    assert "interior project" not in q1["prompt"].lower()
+
+
+def test_handoff_includes_first_farm_question_without_wrong_template():
+    from backend.intelligence.hybrid_flow import append_first_step_to_handoff
+    from backend.intelligence import stage_engine as se
+
+    session = Session(
+        session_id="wa_test",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+    )
+    for field, value in (
+        ("client_name", "Harshi"),
+        ("phone_number", "+91999"),
+        ("city", "Hyderabad"),
+        ("property_location", "HSR"),
+        ("preferred_contact_time", "morning"),
+    ):
+        se.mark_field_validated(session, field, value)
+    se.mark_field_validated(session, "ava_intro_shown", True)
+    se.on_service_selected(session, ServiceCategory.FARM_INFRASTRUCTURE)
+    handoff = append_first_step_to_handoff(
+        session,
+        "Perfect ✨ I'm connecting you with Anil Reddy, our specialist.",
+    )
+    assert "farm infrastructure" in handoff.lower()
+    assert "interior project" not in handoff.lower()
+    assert "select the service" not in handoff.lower()
 
 
 def test_home_interiors_keeps_own_twilio_templates():
