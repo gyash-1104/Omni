@@ -35,13 +35,25 @@ def _mcq_option_count(step: dict) -> int:
     return len([o for o in step.get("options", []) if str(o.get("value", "")).lower() != "__other__"])
 
 
+def _variable_mcq_list_sid(option_count: int) -> str | None:
+    """Fully variable {{prompt}} + option rows — safe for any service MCQ."""
+    from backend.config import get_settings
+    cfg = get_settings()
+    if option_count == 5:
+        sid = (cfg.twilio_mcq_list_5_content_sid or cfg.twilio_whatsapp_interactive_content_sid or "").strip()
+    elif option_count == 4:
+        sid = (cfg.twilio_mcq_list_4_content_sid or cfg.twilio_whatsapp_interactive_content_sid or "").strip()
+    else:
+        sid = ""
+    return sid or None
+
+
 def _resolve_mcq_twilio_sid(step: dict) -> str | None:
     """
     Twilio list template for MCQ steps.
     - Flow JSON may define a service-specific SID (home_interiors, electrical, …).
     - Contact time uses its dedicated template.
-    - Other service_q steps use plain numbered options — generic/shared SIDs often
-      have static AVA or wrong-service body text and must not be reused.
+    - Other service_q steps use variable 4/5-row MCQ templates (Choose option).
     """
     explicit = step.get("twilio_content_sid")
     if explicit:
@@ -49,6 +61,8 @@ def _resolve_mcq_twilio_sid(step: dict) -> str | None:
     field = str(step.get("field", ""))
     if field == "preferred_contact_time":
         return CONTACT_TIME_TWILIO_CONTENT_SID
+    if field.startswith("service_q"):
+        return _variable_mcq_list_sid(_mcq_option_count(step))
     return None
 
 
@@ -56,8 +70,9 @@ def _attach_mcq_list_delivery(out: dict, sid: str, step: dict) -> dict:
     out["twilio_content_sid"] = sid
     out["require_content_variables"] = True
     out["twilio_list_prompt"] = str(step.get("prompt") or "").strip()
-    if sid == CONTACT_TIME_TWILIO_CONTENT_SID:
-        out["twilio_list_slots"] = _mcq_option_count(step)
+    count = _mcq_option_count(step)
+    if sid == CONTACT_TIME_TWILIO_CONTENT_SID or str(step.get("field", "")).startswith("service_q"):
+        out["twilio_list_slots"] = count
     return out
 
 

@@ -30,6 +30,10 @@ services:
         sync: false
       - key: TWILIO_WHATSAPP_INTERACTIVE_CONTENT_SID
         sync: false
+      - key: TWILIO_MCQ_LIST_5_CONTENT_SID
+        sync: false
+      - key: TWILIO_MCQ_LIST_4_CONTENT_SID
+        sync: false
       - key: VAPI_API_KEY
         sync: false
       - key: VAPI_ASSISTANT_ID

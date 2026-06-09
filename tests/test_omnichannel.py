@@ -176,28 +176,42 @@ def test_no_sqft_in_technical_stage():
     assert "tech_room_configuration" in fields
 
 
-def test_farm_infrastructure_four_option_mcq_uses_plain_text_options():
+def test_farm_infrastructure_four_option_mcq_uses_clickable_list(monkeypatch):
+    from backend.config import get_settings
     from backend.intelligence.qualification_builder import _service_questionnaire_steps
+
+    monkeypatch.setenv("TWILIO_MCQ_LIST_4_CONTENT_SID", "HX2def478cef646e98b157b87d5998c433")
+    get_settings.cache_clear()
 
     steps = _service_questionnaire_steps(ServiceCategory.FARM_INFRASTRUCTURE)
     q2 = next(s for s in steps if s["field"] == "service_q2")
     assert q2["prompt"] == "What is the land area for development?"
-    assert "twilio_content_sid" not in q2
+    assert q2["twilio_content_sid"] == "HX2def478cef646e98b157b87d5998c433"
+    assert q2.get("twilio_list_slots") == 4
 
 
-def test_farm_infrastructure_mcq_uses_correct_prompt_not_shared_template():
+def test_farm_infrastructure_mcq_uses_correct_prompt_and_clickable_list(monkeypatch):
+    from backend.config import get_settings
     from backend.intelligence.qualification_builder import _service_questionnaire_steps
+
+    monkeypatch.setenv("TWILIO_MCQ_LIST_5_CONTENT_SID", "HXe51472b177c7bf1f3f2b0899b62af29f")
+    get_settings.cache_clear()
 
     steps = _service_questionnaire_steps(ServiceCategory.FARM_INFRASTRUCTURE)
     q1 = next(s for s in steps if s["field"] == "service_q1")
     assert q1["prompt"] == "What type of farm infrastructure do you need?"
-    assert "twilio_content_sid" not in q1
+    assert q1["twilio_content_sid"] == "HXe51472b177c7bf1f3f2b0899b62af29f"
+    assert q1.get("twilio_list_slots") == 5
     assert "interior project" not in q1["prompt"].lower()
 
 
-def test_handoff_includes_first_farm_question_without_wrong_template():
+def test_handoff_excludes_first_farm_question_when_interactive_list(monkeypatch):
+    from backend.config import get_settings
     from backend.intelligence.hybrid_flow import append_first_step_to_handoff
     from backend.intelligence import stage_engine as se
+
+    monkeypatch.setenv("TWILIO_MCQ_LIST_5_CONTENT_SID", "HXe51472b177c7bf1f3f2b0899b62af29f")
+    get_settings.cache_clear()
 
     session = Session(
         session_id="wa_test",
@@ -219,9 +233,10 @@ def test_handoff_includes_first_farm_question_without_wrong_template():
         session,
         "Perfect ✨ I'm connecting you with Anil Reddy, our specialist.",
     )
-    assert "farm infrastructure" in handoff.lower()
+    assert "farm infrastructure" not in handoff.lower()
     assert "interior project" not in handoff.lower()
     assert "select the service" not in handoff.lower()
+    assert "Anil Reddy" in handoff
 
 
 def test_home_interiors_keeps_own_twilio_templates():

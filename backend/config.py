@@ -47,6 +47,9 @@ class Settings(BaseSettings):
     # Twilio Content template SID for interactive WhatsApp MCQ/list messages
     # The template should support content variables for prompt/options/payloads.
     twilio_whatsapp_interactive_content_sid: str = ""
+    # Variable MCQ list pickers — see scripts/create_mcq_list_content.py
+    twilio_mcq_list_4_content_sid: str = ""
+    twilio_mcq_list_5_content_sid: str = ""
     # Variable-based list picker for service menu (no AVA welcome). See scripts/create_service_list_content.py
     twilio_service_selection_content_sid: str = ""
 
