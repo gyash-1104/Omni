@@ -5,11 +5,11 @@
     "field": "service_q1",
     "prompt": "What type of farm infrastructure do you need?",
     "options": [
-      { "label": "Polyhouse / Greenhouse", "value": "polyhouse_greenhouse" },
+      { "label": "Polyhouse / Greenhouse Construction", "value": "polyhouse_greenhouse" },
       { "label": "Farm Storage / Cold Room", "value": "farm_storage_cold_room" },
-      { "label": "Livestock / Poultry Shed", "value": "livestock_poultry_shed" },
-      { "label": "Farm Road & Boundary", "value": "farm_road_boundary_wall" },
-      { "label": "Integrated Farm Setup", "value": "integrated_farm_infrastructure" }
+      { "label": "Livestock Shed / Poultry Unit", "value": "livestock_poultry_shed" },
+      { "label": "Farm Road & Boundary Wall", "value": "farm_road_boundary_wall" },
+      { "label": "Integrated Farm Infrastructure", "value": "integrated_farm_infrastructure" }
     ]
   },
   {
@@ -30,10 +30,10 @@
     "field": "service_q3",
     "prompt": "Do you have power and water availability on site?",
     "options": [
-      { "label": "Yes - power & borewell", "value": "yes_power_borewell" },
-      { "label": "Partial - one available", "value": "partial_one_available" },
-      { "label": "No - need full setup", "value": "no_need_full_setup" },
-      { "label": "Need assessment", "value": "need_assessment" }
+      { "label": "Yes - grid power & borewell", "value": "yes_power_borewell" },
+      { "label": "Partial - only one available", "value": "partial_one_available" },
+      { "label": "No - need full utility setup", "value": "no_need_full_setup" },
+      { "label": "Need assessment / not sure", "value": "need_assessment" }
     ]
   },
   {
