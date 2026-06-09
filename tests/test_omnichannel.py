@@ -2,7 +2,7 @@
 import pytest
 
 from backend.schemas.service import ServiceCategory
-from backend.schemas.session import Session, ConversationStage
+from backend.schemas.session import Session, ConversationStage, MessageRole
 from backend.intelligence.nova_router import detect_service, SERVICE_MENU_PROMPT
 from backend.intelligence import hybrid_flow
 from backend.intelligence import stage_engine as se
@@ -89,6 +89,26 @@ def test_post_submit_message_intent():
     assert not _is_new_enquiry_intent("Thank you")
     assert _is_new_enquiry_intent("Hello")
     assert _is_new_enquiry_intent("Hi there")
+
+
+@pytest.mark.asyncio
+async def test_name_after_restart45_does_not_repeat_eva_intro():
+    session = Session(
+        session_id="wa_whatsapp:+919999999999",
+        phone_number="whatsapp:+919999999999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.ROUTING,
+    )
+    intro = hybrid_flow.first_client_message()
+    session.add_message(MessageRole.ASSISTANT, intro)
+    se.start_client_stage(session)
+
+    controller = ConversationController()
+    resp = await controller.process_message(session, "Divya", channel="whatsapp")
+    assert "I'm EVA" not in resp.text
+    assert "What is your full name?" not in resp.text
+    assert "city" in resp.text.lower()
+    assert session.extracted_fields.get("client_name") == "Divya"
 
 
 @pytest.mark.asyncio

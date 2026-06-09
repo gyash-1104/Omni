@@ -9,7 +9,7 @@ from typing import Optional
 from fastapi import APIRouter, HTTPException, Request, Response, BackgroundTasks
 
 from backend.config import get_settings
-from backend.schemas.session import Session, ConversationStage
+from backend.schemas.session import Session, ConversationStage, MessageRole
 from backend.intelligence.conversation_controller import get_controller
 from backend.intelligence import hybrid_flow
 from backend.intelligence import edit_flow
@@ -79,7 +79,13 @@ def _session_is_submitted(session: Session) -> bool:
 async def _handle_restart45(session_id: str, phone_number: str) -> str:
     """Clear session and return EVA welcome."""
     await start_fresh_session(session_id, phone_number, reason="RESTART45")
-    return "Session reset.\n\n" + hybrid_flow.first_client_message()
+    session = await get_session(session_id)
+    intro = hybrid_flow.first_client_message()
+    if session:
+        session.add_message(MessageRole.ASSISTANT, intro)
+        se.start_client_stage(session)
+        await save_session(session)
+    return "Session reset.\n\n" + intro
 
 
 def _twilio_validation_url(request: Request) -> str:

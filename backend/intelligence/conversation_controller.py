@@ -38,9 +38,12 @@ def _is_off_topic(message: str) -> bool:
     return any(kw in lower for kw in OFF_TOPIC_KEYWORDS)
 
 
-def _is_first_assistant_turn(session: Session) -> bool:
-    """True until EVA has sent at least one reply in this session."""
-    return not any(m.role == MessageRole.ASSISTANT for m in session.conversation_history)
+def _should_send_eva_intro_for_greeting(session: Session, user_message: str) -> bool:
+    """Only greetings before any bot reply — show EVA welcome instead of treating as an answer."""
+    if any(m.role == MessageRole.ASSISTANT for m in session.conversation_history):
+        return False
+    from backend.utils.session_idle import is_greeting_message
+    return is_greeting_message(user_message)
 
 
 def _end_conversation(session: Session) -> None:
@@ -208,9 +211,9 @@ class ConversationController:
 
         if se.needs_client_details(session) and not session.flow_state.get("final_review_shown"):
             se.start_client_stage(session)
-            # First inbound message (Hi/Hello/etc.) — send EVA welcome + first question;
-            # do not treat the greeting as client_name or skip straight to city.
-            if _is_first_assistant_turn(session):
+            # Greeting as the very first user message — EVA welcome + name question;
+            # do not treat Hi/Hello as client_name. Answers like a name proceed normally.
+            if _should_send_eva_intro_for_greeting(session, user_message):
                 intro = hybrid_flow.first_client_message()
                 session.add_message(MessageRole.ASSISTANT, intro)
                 session.flow_state["last_stage_shown"] = "client_details"
