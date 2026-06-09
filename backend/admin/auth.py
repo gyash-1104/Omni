@@ -86,6 +86,7 @@ def _resolve_admin_auth(
             return {"method": "session_token"}
     if query_token and is_valid_token(query_token):
         return {"method": "session_token"}
+        
     raise HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Authentication required",
