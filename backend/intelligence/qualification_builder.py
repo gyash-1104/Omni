@@ -61,7 +61,7 @@ def _resolve_mcq_twilio_sid(step: dict) -> str | None:
     field = str(step.get("field", ""))
     if field == "preferred_contact_time":
         return CONTACT_TIME_TWILIO_CONTENT_SID
-    if field.startswith("service_q"):
+    if field.startswith("service_q") or field.startswith("__edit_"):
         return _variable_mcq_list_sid(_mcq_option_count(step))
     return None
 
@@ -69,11 +69,20 @@ def _resolve_mcq_twilio_sid(step: dict) -> str | None:
 def _attach_mcq_list_delivery(out: dict, sid: str, step: dict) -> dict:
     out["twilio_content_sid"] = sid
     out["require_content_variables"] = True
-    out["twilio_list_prompt"] = str(step.get("prompt") or "").strip()
+    field = str(step.get("field", ""))
+    if step.get("twilio_list_prompt"):
+        out["twilio_list_prompt"] = str(step["twilio_list_prompt"]).strip()
+    else:
+        out["twilio_list_prompt"] = str(step.get("prompt") or "").strip()
     count = _mcq_option_count(step)
-    if sid == CONTACT_TIME_TWILIO_CONTENT_SID or str(step.get("field", "")).startswith("service_q"):
+    if sid == CONTACT_TIME_TWILIO_CONTENT_SID or field.startswith("service_q") or field.startswith("__edit_"):
         out["twilio_list_slots"] = count
     return out
+
+
+def enrich_mcq_step_for_whatsapp(step: dict) -> dict:
+    """Public helper — attach Twilio list-picker metadata when configured."""
+    return _enrich_mcq_step(step)
 
 
 def _enrich_mcq_step(step: dict) -> dict:

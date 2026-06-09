@@ -81,6 +81,8 @@ def get_outbound_step(session: Session) -> Optional[dict]:
 
 
 def _set_outbound_step(session: Session, step: Optional[dict]) -> None:
+    if step and step.get("type") == "mcq":
+        step = qb.enrich_mcq_step_for_whatsapp(step)
     if step:
         session.flow_state["edit_outbound_step"] = step
     else:
@@ -98,6 +100,7 @@ def enter_edit_mode(session: Session) -> tuple[str, Optional[dict]]:
     session.flow_state["final_review_shown"] = True
     step = _section_menu_step()
     _set_outbound_step(session, step)
+    step = get_outbound_step(session) or step
     return _prompt_for_step(step), step
 
 
@@ -111,6 +114,10 @@ def clear_edit_mode(session: Session) -> None:
 
 def _prompt_for_step(step: dict) -> str:
     if step.get("type") == "mcq":
+        from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
+
+        if mcq_uses_interactive_delivery(step):
+            return str(step.get("prompt") or "").strip()
         return hybrid_flow.format_mcq_message(step)
     return str(step.get("prompt") or "")
 
@@ -120,11 +127,8 @@ def _section_menu_step() -> dict:
         "id": "edit_section_menu",
         "type": "mcq",
         "field": "__edit_section__",
-        "prompt": (
-            "No problem 👍\n\n"
-            "Which section would you like to update?\n"
-            "(Reply with the section name or tap an option.)"
-        ),
+        "prompt": "No problem 👍\n\nWhich section would you like to update?",
+        "twilio_list_prompt": "Which section would you like to update?",
         "options": list(_SECTION_OPTIONS),
     }
 

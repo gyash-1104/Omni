@@ -136,16 +136,32 @@ def mcq_uses_interactive_delivery(step: Optional[dict[str, Any]]) -> bool:
     return _should_send_interactive(step)
 
 
+def _variable_mcq_list_sid(option_count: int) -> str:
+    if option_count == 5:
+        sid = (
+            str(getattr(settings, "twilio_mcq_list_5_content_sid", "") or "").strip()
+            or str(getattr(settings, "twilio_whatsapp_interactive_content_sid", "") or "").strip()
+        )
+    elif option_count == 4:
+        sid = (
+            str(getattr(settings, "twilio_mcq_list_4_content_sid", "") or "").strip()
+            or str(getattr(settings, "twilio_whatsapp_interactive_content_sid", "") or "").strip()
+        )
+    else:
+        sid = ""
+    return sid
+
+
 def _should_send_interactive(step: dict[str, Any]) -> bool:
     if step.get("force_plain_mcq"):
         return False
     field = str(step.get("field", ""))
-    if field.startswith("__edit__"):
-        return False
     if step.get("twilio_content_sid") or step.get("use_dynamic_list"):
         return bool(_resolve_content_sid(step))
     if field == "service_category":
         return bool(getattr(settings, "twilio_service_selection_content_sid", ""))
+    if field.startswith("__edit_"):
+        return bool(_variable_mcq_list_sid(len([o for o in (step.get("options") or []) if not _is_other_option(o)])))
     return False
 
 
@@ -155,8 +171,6 @@ def enrich_whatsapp_mcq_step(step: Optional[dict[str, Any]]) -> Optional[dict[st
     (e.g. irrigation, plumbing) using the shared dynamic list template.
     """
     if not step or step.get("type") != "mcq":
-        return step
-    if str(step.get("field", "")).startswith("__edit__"):
         return step
     if not getattr(settings, "twilio_whatsapp_quick_reply", False):
         return step
@@ -186,8 +200,16 @@ def enrich_whatsapp_mcq_step(step: Optional[dict[str, Any]]) -> Optional[dict[st
     out["options"] = enriched_options
 
     if out.get("twilio_content_sid"):
-        if out.get("require_content_variables") or str(out.get("field", "")).startswith("service_q") or str(out.get("field", "")) == "preferred_contact_time":
+        field = str(out.get("field", ""))
+        if out.get("require_content_variables") or field.startswith("service_q") or field.startswith("__edit_") or field == "preferred_contact_time":
             out["require_content_variables"] = True
+        return out
+
+    variable_sid = _variable_mcq_list_sid(len(quick_opts))
+    if variable_sid and len(quick_opts) in (4, 5):
+        out["twilio_content_sid"] = variable_sid
+        out["require_content_variables"] = True
+        out["twilio_list_slots"] = len(quick_opts)
         return out
 
     dynamic_sid = (

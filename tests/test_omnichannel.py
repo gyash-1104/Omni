@@ -293,5 +293,28 @@ def test_lead_scorer():
     assert tier in ("hot", "warm", "cold")
 
 
+def test_edit_section_menu_uses_clickable_list(monkeypatch):
+    from backend.config import get_settings
+    from backend.intelligence import edit_flow
+
+    monkeypatch.setenv("TWILIO_MCQ_LIST_5_CONTENT_SID", "HXe51472b177c7bf1f3f2b0899b62af29f")
+    monkeypatch.setenv("TWILIO_WHATSAPP_QUICK_REPLY", "true")
+    get_settings.cache_clear()
+
+    session = Session(
+        session_id="wa_edit",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.CONFIRMATION,
+    )
+    msg, step = edit_flow.enter_edit_mode(session)
+    assert step is not None
+    assert step["twilio_content_sid"] == "HXe51472b177c7bf1f3f2b0899b62af29f"
+    assert step.get("twilio_list_slots") == 5
+    assert "Client Details" not in msg
+    assert "No problem" in msg
+    assert "Which section would you like to update?" in msg
+
+
 def test_service_menu_prompt():
     assert "1." in SERVICE_MENU_PROMPT
