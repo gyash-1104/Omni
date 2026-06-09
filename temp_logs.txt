@@ -1,0 +1,109 @@
+{
+  "event": "NEXT_FIELD_DECISION",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:50:49.780322Z",
+  "next_field": "client_name",
+  "stage": "DISCOVERY"
+}
+{
+  "event": "GEMINI_RESPONSE",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:51:01.329108Z",
+  "response_preview": "It is a pleasure to meet you, Vishal. Mysuru is a beautiful city with such a rich heritage, and a villa there sounds lik"
+}
+{
+  "event": "USER_MESSAGE",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:55:07.107222Z",
+  "message": "RESTART45.",
+  "stage": "DISCOVERY"
+}
+{
+  "event": "NEXT_FIELD_DECISION",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:55:11.535843Z",
+  "newly_completed": [],
+  "all_completed": [],
+  "completion_pct": 0
+}
+{
+  "event": "NEXT_FIELD_DECISION",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:55:11.536434Z",
+  "next_field": "client_name",
+  "stage": "DISCOVERY"
+}
+{
+  "event": "GEMINI_RESPONSE",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:55:15.545684Z",
+  "response_preview": "Hello! I am Aadhya Rao, and I am so pleased to help you begin this journey of creating a home that feels uniquely yours."
+}
+{
+  "event": "USER_MESSAGE",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:55:31.464881Z",
+  "message": "Vishal",
+  "stage": "DISCOVERY"
+}
+{
+  "event": "EXTRACTED_FIELDS",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:55:33.724726Z",
+  "fields": {
+    "client_name": "Vishal"
+  }
+}
+{
+  "event": "NEXT_FIELD_DECISION",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:55:33.726403Z",
+  "newly_completed": [
+    "client_name"
+  ],
+  "all_completed": [
+    "client_name"
+  ],
+  "completion_pct": 11
+}
+{
+  "event": "NEXT_FIELD_DECISION",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:55:33.727016Z",
+  "next_field": "property_type",
+  "stage": "DISCOVERY"
+}
+{
+  "event": "GEMINI_RESPONSE",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:55:36.955244Z",
+  "response_preview": "It is a pleasure to meet you, Vishal. To help me visualize your space better, could you tell me if this is for an apartm"
+}
+{
+  "event": "USER_MESSAGE",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:55:47.993481Z",
+  "message": "Villa",
+  "stage": "DISCOVERY"
+}
+{
+  "event": "NEXT_FIELD_DECISION",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:55:51.645421Z",
+  "newly_completed": [],
+  "all_completed": [],
+  "completion_pct": 0
+}
+{
+  "event": "NEXT_FIELD_DECISION",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:55:51.646100Z",
+  "next_field": "client_name",
+  "stage": "DISCOVERY"
+}
+{
+  "event": "GEMINI_RESPONSE",
+  "session_id": "wa_whatsapp:+919392698439",
+  "timestamp": "2026-03-16T05:55:54.962817Z",
+  "response_preview": "A villa offers such a beautiful canvas for creating a truly personalized and expansive home. Before we explore your visi"
+}
