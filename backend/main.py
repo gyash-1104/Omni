@@ -19,7 +19,7 @@ from backend.admin.router import router as admin_router
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("Aadhya AI Interior Design Consultant - Starting up")
+    print("Aadhya AI Omnichannel Lead Qualification System - Starting up")
     print("   Gemini intelligence: ready")
     print("   WhatsApp webhook: /webhook/whatsapp")
     print("   Vapi webhook: /webhook/vapi")
