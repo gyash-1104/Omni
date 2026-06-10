@@ -357,11 +357,7 @@ def process_edit_turn(
             if chosen["value"] == "confirm_submit":
                 clear_edit_mode(session)
                 return "", None, False
-        return (
-            "Please tap *Confirm & Submit* or *Edit Again* above.",
-            step,
-            True,
-        )
+        return (hybrid_flow.invalid_choice_reply(step), step, True)
 
     if phase == "section":
         step = _section_menu_step()
@@ -371,7 +367,7 @@ def process_edit_turn(
         )
         if not chosen:
             _set_outbound_step(session, step)
-            return _prompt_for_step(step) + "\n\nPlease select a section from the list.", step, True
+            return hybrid_flow.invalid_choice_reply(step), step, True
         section = chosen["value"]
         session.flow_state["edit_section"] = section
         if section == "uploaded_files":
@@ -394,7 +390,7 @@ def process_edit_turn(
         chosen = _resolve_mcq(step, text, button_text=button_text, button_payload=button_payload, list_id=list_id)
         if not chosen:
             _set_outbound_step(session, step)
-            return _prompt_for_step(step) + "\n\nPlease choose an option from the list.", step, True
+            return hybrid_flow.invalid_choice_reply(step), step, True
         action = chosen["value"]
         if action == "remove_existing_file":
             session.attachments = []
@@ -414,7 +410,7 @@ def process_edit_turn(
         chosen = _resolve_mcq(step, text, button_text=button_text, button_payload=button_payload, list_id=list_id)
         if not chosen:
             _set_outbound_step(session, step)
-            return _prompt_for_step(step) + "\n\nPlease select a field from the list.", step, True
+            return hybrid_flow.invalid_choice_reply(step), step, True
         field = chosen["value"]
         return _start_field_edit(session, field)
 
@@ -440,9 +436,8 @@ def process_edit_turn(
             if category is None:
                 category = detect_service(text or button_payload or list_id or button_text)
             if not category:
-                prompt = _edit_value_prompt(session, field, edit_step)
                 _set_outbound_step(session, edit_step)
-                return prompt + "\n\nPlease choose a service from the list.", edit_step, True
+                return hybrid_flow.invalid_choice_reply(edit_step), edit_step, True
             session.service_category = category
             session.active_consultant = CONSULTANT_IDS[category]
             se.mark_field_validated(session, "service_category", category.value)
@@ -458,9 +453,8 @@ def process_edit_turn(
                 button_text=button_text, button_payload=button_payload, list_id=list_id,
             )
             if not chosen:
-                prompt = _edit_value_prompt(session, field, qstep)
                 _set_outbound_step(session, qstep)
-                return prompt + "\n\nPlease choose an option from the list.", qstep, True
+                return hybrid_flow.invalid_choice_reply(qstep), qstep, True
             value = chosen.get("value", chosen.get("label"))
         elif stype == "descriptive":
             if qstep.get("optional") and lower in _SKIP_WORDS:
