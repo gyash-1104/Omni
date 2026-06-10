@@ -145,6 +145,31 @@ def format_multi_select_message(step: dict) -> str:
     return format_mcq_message(step)
 
 
+def invalid_choice_reply(step: dict) -> str:
+    """
+    Politely reject input that does not match MCQ options and re-ask the current question.
+    Does not repeat stage-bridge intros — user stays on the same step.
+    """
+    apology = "Sorry, I didn't quite get that."
+    hint = "Please choose one of the options below, or reply with the option number or name."
+    stype = step.get("type")
+    if stype == "multi_select":
+        hint = "Please reply with one or more option numbers or names from the list below."
+
+    from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
+
+    if mcq_uses_interactive_delivery(step):
+        question = (
+            step.get("twilio_list_prompt")
+            or step.get("prompt")
+            or "Please choose one option."
+        )
+        return f"{apology}\n\n{question}\n\n{hint}"
+
+    question_body = format_step_message(step, include_stage=False)
+    return f"{apology}\n\n{question_body}\n\n{hint}"
+
+
 def format_step_message(step: dict, *, include_stage: bool = True) -> str:
     parts: list[str] = []
     if include_stage:
@@ -301,7 +326,7 @@ def process_hybrid_turn(
             fn = next(iter(resolved))
             msg = _complete_field(session, fn, resolved[fn])
             return (msg or _prompt_continue(session), True)
-        return (format_step_message(step) + "\n\n(I didn't catch that — try a number or short phrase.)", True)
+        return (invalid_choice_reply(step), True)
 
     if stype == "descriptive" or is_text_only_step(step):
         text = (normalized_text or button_text or "").strip()

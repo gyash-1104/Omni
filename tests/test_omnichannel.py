@@ -7,7 +7,8 @@ from backend.intelligence.nova_router import detect_service, SERVICE_MENU_PROMPT
 from backend.intelligence import hybrid_flow
 from backend.intelligence import stage_engine as se
 from backend.intelligence.lead_scorer import score_lead
-from backend.intelligence.conversation_controller import ConversationController
+from backend.intelligence.conversation_controller import ConversationController, _is_off_topic
+from backend.intelligence.persona import GUARDRAIL_REDIRECT
 from backend.agents.chat.whatsapp_handler import _is_new_enquiry_intent, _is_post_submit_polite_reply
 from backend.utils.session_idle import (
     is_session_idle_expired,
@@ -318,3 +319,134 @@ def test_edit_section_menu_uses_clickable_list(monkeypatch):
 
 def test_service_menu_prompt():
     assert "1." in SERVICE_MENU_PROMPT
+
+
+def test_invalid_mcq_reasks_current_question():
+    session = Session(
+        session_id="t",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+    )
+    se.start_client_stage(session)
+    for field, value in (
+        ("client_name", "Rahul"),
+        ("city", "Bengaluru"),
+        ("property_location", "HSR Layout"),
+        ("email", "skipped"),
+    ):
+        se.mark_field_validated(session, field, value)
+    step = hybrid_flow.get_current_step(session)
+    assert step is not None
+    assert step["field"] == "preferred_contact_time"
+    prompt_snippet = step["prompt"][:30]
+
+    reply, handled = hybrid_flow.process_hybrid_turn(session, "banana pizza random")
+    assert handled is True
+    assert "Sorry" in reply
+    assert prompt_snippet in reply or "contact" in reply.lower()
+    assert not se.field_is_complete(session, "preferred_contact_time")
+
+
+@pytest.mark.asyncio
+async def test_off_topic_during_mcq_reasks_not_guardrail():
+    session = Session(
+        session_id="wa_whatsapp:+919999999999",
+        phone_number="whatsapp:+919999999999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+    )
+    se.start_client_stage(session)
+    for field, value in (
+        ("client_name", "Rahul"),
+        ("city", "Bengaluru"),
+        ("property_location", "HSR Layout"),
+        ("email", "skipped"),
+    ):
+        se.mark_field_validated(session, field, value)
+
+    controller = ConversationController()
+    resp = await controller.process_message(session, "what is the cricket score", channel="whatsapp")
+    assert "Sorry" in resp.text
+    assert "contact" in resp.text.lower()
+    assert not se.field_is_complete(session, "preferred_contact_time")
+
+
+def test_livestock_does_not_trigger_stock_off_topic():
+    farm_answer = (
+        "The goal is to develop a diversified farm with greenhouse or livestock units. "
+        "Planned activities include dairy or poultry farming."
+    )
+    assert _is_off_topic(farm_answer) is False
+    assert _is_off_topic("what is the stock market doing today") is True
+
+
+@pytest.mark.asyncio
+async def test_farm_descriptive_answer_not_guardrail_redirect():
+    session = Session(
+        session_id="wa_whatsapp:+919999999999",
+        phone_number="whatsapp:+919999999999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+        service_category=ServiceCategory.FARM_INFRASTRUCTURE,
+        active_consultant="anil",
+    )
+    for field, value in (
+        ("client_name", "Vidya"),
+        ("city", "Mysore"),
+        ("property_location", "Mysore, kuvemunagar"),
+        ("preferred_contact_time", "morning"),
+        ("phone_number", "+919999999999"),
+        ("ava_intro_shown", True),
+    ):
+        se.mark_field_validated(session, field, value)
+    se.on_service_selected(session, ServiceCategory.FARM_INFRASTRUCTURE)
+    for field, value in (
+        ("service_q1", "integrated_farm_infrastructure"),
+        ("service_q2", "1_5_acres"),
+        ("service_q3", "yes_power_borewell"),
+    ):
+        se.mark_field_validated(session, field, value)
+    se.reconcile_session(session)
+    step = hybrid_flow.get_current_step(session)
+    assert step is not None
+    assert step["field"] == "service_q4"
+
+    farm_answer = (
+        "The farm is currently used for small-scale seasonal crop cultivation. "
+        "The goal is to develop it into a diversified farm with livestock units, "
+        "dairy or poultry farming, and reliable water supply."
+    )
+    controller = ConversationController()
+    resp = await controller.process_message(session, farm_answer, channel="whatsapp")
+    assert GUARDRAIL_REDIRECT not in resp.text
+    assert "beautiful space" not in resp.text.lower()
+    assert se.field_is_complete(session, "service_q4")
+    assert "upload" in resp.text.lower() or "file" in resp.text.lower()
+
+
+@pytest.mark.asyncio
+async def test_invalid_service_selection_reasks():
+    session = Session(
+        session_id="wa_whatsapp:+919999999999",
+        phone_number="whatsapp:+919999999999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+    )
+    se.start_client_stage(session)
+    for field, value in (
+        ("client_name", "Rahul"),
+        ("city", "Bengaluru"),
+        ("property_location", "HSR Layout"),
+        ("preferred_contact_time", "morning"),
+        ("phone_number", "+919999999999"),
+    ):
+        se.mark_field_validated(session, field, value)
+    se.mark_stage_complete(session, "client_details")
+    se.reconcile_session(session)
+    assert se.needs_service_selection(session)
+
+    controller = ConversationController()
+    resp = await controller.process_message(session, "banana smoothie", channel="whatsapp")
+    assert "Sorry" in resp.text
+    assert session.service_category is None

@@ -3,6 +3,8 @@ Conversation controller — strict stage-based qualification, then final review.
 """
 from __future__ import annotations
 
+import re
+
 from backend.schemas.session import Session, ConversationStage, MessageRole
 from backend.intelligence.persona import GUARDRAIL_REDIRECT
 from backend.intelligence import hybrid_flow
@@ -14,6 +16,7 @@ from backend.intelligence.nova_router import (
     detect_service,
     is_service_more_selection,
     get_consultant_display_name,
+    get_service_selection_outbound_step,
 )
 from backend.intelligence.consultants.registry import get_service_label
 from backend.schemas.service import CONSULTANT_IDS
@@ -34,8 +37,18 @@ class AgentResponse:
 
 
 def _is_off_topic(message: str) -> bool:
+    """Whole-word match only — avoids false positives like *livestock* → *stock*."""
     lower = message.lower()
-    return any(kw in lower for kw in OFF_TOPIC_KEYWORDS)
+    return any(re.search(rf"\b{re.escape(kw)}\b", lower) for kw in OFF_TOPIC_KEYWORDS)
+
+
+def _should_skip_off_topic_guardrail(session: Session) -> bool:
+    """Structured qualification answers must never get the generic interior-design redirect."""
+    if se.is_collecting_qualification(session):
+        return True
+    if edit_flow.is_active(session):
+        return True
+    return False
 
 
 def _should_send_eva_intro_for_greeting(session: Session, user_message: str) -> bool:
@@ -205,7 +218,7 @@ class ConversationController:
 
         session.add_message(MessageRole.USER, user_message)
 
-        if _is_off_topic(user_message):
+        if _is_off_topic(user_message) and not _should_skip_off_topic_guardrail(session):
             session.add_message(MessageRole.ASSISTANT, GUARDRAIL_REDIRECT)
             return AgentResponse(text=GUARDRAIL_REDIRECT, session=session)
 
@@ -251,11 +264,8 @@ class ConversationController:
 
             category = detect_service(selection_input)
             if category is None:
-                msg = (
-                    "Perfect — your contact details are saved."
-                    if int(session.flow_state.get("service_list_page") or 1) < 2
-                    else "Please tap one service from the list below."
-                )
+                step = get_service_selection_outbound_step(session)
+                msg = hybrid_flow.invalid_choice_reply(step)
                 session.add_message(MessageRole.ASSISTANT, msg)
                 return AgentResponse(text=msg, session=session)
 
