@@ -227,7 +227,7 @@ def _humanize(field: str, value: Any, *, service_category: str = "") -> str:
     return display_label(field, value, service_category=service_category)
 
 
-def format_final_review(session) -> str:
+def format_final_review(session, *, include_footer: bool = True) -> str:
     """Structured preview before summary generation."""
     from backend.intelligence.stage_engine import can_enter_final_review, missing_fields_report
     if not can_enter_final_review(session):
@@ -267,10 +267,12 @@ def format_final_review(session) -> str:
         "",
         "*Files*",
         f"- {_humanize('attachments', ef.get('attachments', 'none'), service_category=service_key)}",
-        "",
-        "Does this look correct?",
-        "Reply *Confirm & Submit* to submit your enquiry, or *Edit Details* to update anything.",
     ]
+    if include_footer:
+        blocks.extend([
+            "",
+            "Does everything look correct? Reply *Confirm & Submit* or *Edit Details*.",
+        ])
     return "\n".join(blocks)
 
 

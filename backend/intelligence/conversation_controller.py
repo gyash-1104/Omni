@@ -195,7 +195,7 @@ class ConversationController:
                     summary_generated=True,
                 )
 
-            hold = "Please reply *Confirm & Submit*, or *Edit Details* to update information."
+            hold = "Please reply *Confirm & Submit* or *Edit Details*."
             session.add_message(MessageRole.ASSISTANT, hold)
             return AgentResponse(text=hold, session=session)
 

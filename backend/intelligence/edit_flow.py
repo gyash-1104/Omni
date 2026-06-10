@@ -158,6 +158,16 @@ def _file_action_step() -> dict:
     }
 
 
+def _post_edit_step() -> dict:
+    return {
+        "id": "edit_post_actions",
+        "type": "mcq",
+        "field": "__edit_post__",
+        "prompt": "Does everything look correct?",
+        "options": list(_POST_EDIT_OPTIONS),
+    }
+
+
 def _fields_for_section(section: str, session: Session) -> list[dict]:
     if section == "client_details":
         steps = {s["field"]: s for s in qb.build_client_details_steps()}
@@ -338,13 +348,7 @@ def process_edit_turn(
     lower = text.lower()
 
     if phase == "post_edit":
-        step = {
-            "id": "edit_post_actions",
-            "type": "mcq",
-            "field": "__edit_post__",
-            "prompt": "Would you like to confirm or edit more?",
-            "options": list(_POST_EDIT_OPTIONS),
-        }
+        step = _post_edit_step()
         chosen = _resolve_mcq(step, text, button_text=button_text, button_payload=button_payload, list_id=list_id)
         if chosen:
             if chosen["value"] == "edit_again":
@@ -354,7 +358,7 @@ def process_edit_turn(
                 clear_edit_mode(session)
                 return "", None, False
         return (
-            "Please choose *Confirm & Submit* or *Edit Again*.",
+            "Please tap *Confirm & Submit* or *Edit Again* above.",
             step,
             True,
         )
@@ -500,19 +504,9 @@ def skip_file_upload(session: Session) -> tuple[str, Optional[dict], bool]:
 
 def _finish_edit(session: Session) -> tuple[str, Optional[dict], bool]:
     se.reconcile_session(session)
-    review = qb.format_final_review(session)
-    msg = (
-        "Updated successfully ✅\n\n"
-        f"{review}\n\n"
-        "Reply *Confirm & Submit* or *Edit Again*."
-    )
-    post_step = {
-        "id": "edit_post_actions",
-        "type": "mcq",
-        "field": "__edit_post__",
-        "prompt": "Confirm & Submit or Edit Again?",
-        "options": list(_POST_EDIT_OPTIONS),
-    }
+    review = qb.format_final_review(session, include_footer=False)
+    msg = f"Updated successfully ✅\n\n{review}"
+    post_step = _post_edit_step()
     session.flow_state["edit_mode"] = True
     session.flow_state["edit_phase"] = "post_edit"
     session.flow_state.pop("edit_section", None)
