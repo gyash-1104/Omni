@@ -373,7 +373,7 @@ def test_edit_section_menu_uses_clickable_list(monkeypatch):
     from backend.config import get_settings
     from backend.intelligence import edit_flow
 
-    monkeypatch.setenv("TWILIO_MCQ_LIST_5_CONTENT_SID", "HXe51472b177c7bf1f3f2b0899b62af29f")
+    monkeypatch.setenv("TWILIO_MCQ_LIST_4_CONTENT_SID", "HX2def478cef646e98b157b87d5998c433")
     monkeypatch.setenv("TWILIO_WHATSAPP_QUICK_REPLY", "true")
     get_settings.cache_clear()
 
@@ -385,8 +385,9 @@ def test_edit_section_menu_uses_clickable_list(monkeypatch):
     )
     msg, step = edit_flow.enter_edit_mode(session)
     assert step is not None
-    assert step["twilio_content_sid"] == "HXe51472b177c7bf1f3f2b0899b62af29f"
-    assert step.get("twilio_list_slots") == 5
+    assert step["twilio_content_sid"] == "HX2def478cef646e98b157b87d5998c433"
+    assert step.get("twilio_list_slots") == 4
+    assert "Service Selection" not in [o["label"] for o in step["options"]]
     assert "Client Details" not in msg
     assert "No problem" in msg
     assert "Which section would you like to update?" in msg
