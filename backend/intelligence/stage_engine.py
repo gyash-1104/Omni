@@ -235,6 +235,8 @@ def enter_final_review(session: Session) -> bool:
     session.flow_state.pop("current_step_id", None)
     set_current_question(session, None)
     sync_pending_fields(session)
+    from backend.intelligence.qualification_builder import prepare_final_review_outbound
+    prepare_final_review_outbound(session)
     return True
 
 

@@ -410,6 +410,34 @@ def test_edit_file_action_uses_clickable_list(monkeypatch):
     assert "Add New File" not in str(enriched.get("prompt", ""))
 
 
+def test_final_review_actions_uses_two_row_list(monkeypatch):
+    from backend.config import get_settings
+    from backend.intelligence.qualification_builder import (
+        enrich_mcq_step_for_whatsapp,
+        final_review_action_step,
+        prepare_final_review_outbound,
+    )
+    from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
+
+    monkeypatch.setenv("TWILIO_MCQ_LIST_2_CONTENT_SID", "HX2row000000000000000000000000001")
+    monkeypatch.setenv("TWILIO_WHATSAPP_QUICK_REPLY", "true")
+    get_settings.cache_clear()
+
+    step = enrich_mcq_step_for_whatsapp(final_review_action_step())
+    assert step["twilio_content_sid"] == "HX2row000000000000000000000000001"
+    assert [o["label"] for o in step["options"]] == ["Confirm & Submit", "Edit Details"]
+    assert mcq_uses_interactive_delivery(step) is True
+
+    session = Session(
+        session_id="wa_test",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.CONFIRMATION,
+    )
+    prepare_final_review_outbound(session)
+    assert session.flow_state.get("final_review_outbound_step")
+
+
 def test_edit_post_actions_uses_two_row_list_not_four(monkeypatch):
     from backend.config import get_settings
     from backend.intelligence import edit_flow
