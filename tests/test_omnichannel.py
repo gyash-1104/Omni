@@ -352,23 +352,42 @@ def test_edit_file_action_uses_clickable_list(monkeypatch):
     assert "Add New File" not in str(enriched.get("prompt", ""))
 
 
-def test_edit_post_actions_uses_clickable_list(monkeypatch):
+def test_edit_post_actions_uses_two_row_list_not_four(monkeypatch):
     from backend.config import get_settings
     from backend.intelligence import edit_flow
     from backend.intelligence.qualification_builder import enrich_mcq_step_for_whatsapp
     from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
 
+    monkeypatch.setenv("TWILIO_MCQ_LIST_2_CONTENT_SID", "HX2row000000000000000000000000001")
     monkeypatch.setenv("TWILIO_MCQ_LIST_4_CONTENT_SID", "HX2def478cef646e98b157b87d5998c433")
     monkeypatch.setenv("TWILIO_WHATSAPP_QUICK_REPLY", "true")
     get_settings.cache_clear()
 
     step = edit_flow._pad_edit_mcq_for_whatsapp(edit_flow._post_edit_step())
     enriched = enrich_mcq_step_for_whatsapp(step)
-    assert enriched["twilio_content_sid"] == "HX2def478cef646e98b157b87d5998c433"
+    assert enriched["twilio_content_sid"] == "HX2row000000000000000000000000001"
+    assert enriched.get("twilio_list_slots") == 2
     assert len(enriched["options"]) == 2
     labels = [o["label"] for o in enriched["options"]]
     assert labels == ["Confirm & Submit", "Edit Again"]
     assert mcq_uses_interactive_delivery(enriched) is True
+
+
+def test_edit_post_actions_without_two_row_sid_avoids_four_row_template(monkeypatch):
+    from backend.config import get_settings
+    from backend.intelligence import edit_flow
+    from backend.intelligence.qualification_builder import enrich_mcq_step_for_whatsapp
+    from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
+
+    monkeypatch.delenv("TWILIO_MCQ_LIST_2_CONTENT_SID", raising=False)
+    monkeypatch.setenv("TWILIO_MCQ_LIST_4_CONTENT_SID", "HX2def478cef646e98b157b87d5998c433")
+    monkeypatch.setenv("TWILIO_WHATSAPP_QUICK_REPLY", "true")
+    get_settings.cache_clear()
+
+    step = edit_flow._pad_edit_mcq_for_whatsapp(edit_flow._post_edit_step())
+    enriched = enrich_mcq_step_for_whatsapp(step)
+    assert enriched.get("twilio_content_sid") in (None, "")
+    assert mcq_uses_interactive_delivery(enriched) is False
 
 
 def test_edit_section_menu_uses_clickable_list(monkeypatch):

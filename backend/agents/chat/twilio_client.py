@@ -143,7 +143,9 @@ def _variable_mcq_list_sid(option_count: int) -> str:
             str(getattr(settings, "twilio_mcq_list_5_content_sid", "") or "").strip()
             or fallback
         )
-    if option_count in (2, 3, 4):
+    if option_count == 2:
+        return str(getattr(settings, "twilio_mcq_list_2_content_sid", "") or "").strip()
+    if option_count in (3, 4):
         return (
             str(getattr(settings, "twilio_mcq_list_4_content_sid", "") or "").strip()
             or fallback

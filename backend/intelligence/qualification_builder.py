@@ -42,7 +42,10 @@ def _variable_mcq_list_sid(option_count: int) -> str | None:
     fallback = (cfg.twilio_whatsapp_interactive_content_sid or "").strip()
     if option_count == 5:
         sid = (cfg.twilio_mcq_list_5_content_sid or fallback).strip()
-    elif option_count in (2, 3, 4):
+    elif option_count == 2:
+        # Never use the 4-row template for 2 options — empty rows show {{option_3_label}} placeholders.
+        sid = (cfg.twilio_mcq_list_2_content_sid or "").strip()
+    elif option_count in (3, 4):
         sid = (cfg.twilio_mcq_list_4_content_sid or fallback).strip()
     else:
         sid = ""

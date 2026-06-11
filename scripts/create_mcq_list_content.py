@@ -4,10 +4,12 @@ Create a Twilio WhatsApp list-picker for service MCQ questions (variable prompt 
 
   python scripts/create_mcq_list_content.py --rows 5
   python scripts/create_mcq_list_content.py --rows 4
+  python scripts/create_mcq_list_content.py --rows 2
 
 Set the printed SID in .env:
   TWILIO_MCQ_LIST_5_CONTENT_SID=HX...
   TWILIO_MCQ_LIST_4_CONTENT_SID=HX...
+  TWILIO_MCQ_LIST_2_CONTENT_SID=HX...
 """
 from __future__ import annotations
 
@@ -26,7 +28,7 @@ from backend.config import get_settings  # noqa: E402
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--rows", type=int, required=True, choices=(4, 5, 6), help="List-picker row count")
+    parser.add_argument("--rows", type=int, required=True, choices=(2, 4, 5, 6), help="List-picker row count")
     args = parser.parse_args()
     row_count = args.rows
 
