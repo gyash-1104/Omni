@@ -258,7 +258,7 @@ class ConversationController:
                 user_message=user_message or "",
             ):
                 session.flow_state["service_list_page"] = 2
-                msg = "Choose your service (6–11) from the list below."
+                msg = "Choose Other Services"
                 session.add_message(MessageRole.ASSISTANT, msg)
                 return AgentResponse(text=msg, session=session)
 

@@ -39,10 +39,11 @@ def _variable_mcq_list_sid(option_count: int) -> str | None:
     """Fully variable {{prompt}} + option rows — safe for any service MCQ."""
     from backend.config import get_settings
     cfg = get_settings()
+    fallback = (cfg.twilio_whatsapp_interactive_content_sid or "").strip()
     if option_count == 5:
-        sid = (cfg.twilio_mcq_list_5_content_sid or cfg.twilio_whatsapp_interactive_content_sid or "").strip()
-    elif option_count == 4:
-        sid = (cfg.twilio_mcq_list_4_content_sid or cfg.twilio_whatsapp_interactive_content_sid or "").strip()
+        sid = (cfg.twilio_mcq_list_5_content_sid or fallback).strip()
+    elif option_count in (2, 3, 4):
+        sid = (cfg.twilio_mcq_list_4_content_sid or fallback).strip()
     else:
         sid = ""
     return sid or None
