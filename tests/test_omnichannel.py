@@ -365,7 +365,9 @@ def test_edit_post_actions_uses_clickable_list(monkeypatch):
     step = edit_flow._pad_edit_mcq_for_whatsapp(edit_flow._post_edit_step())
     enriched = enrich_mcq_step_for_whatsapp(step)
     assert enriched["twilio_content_sid"] == "HX2def478cef646e98b157b87d5998c433"
-    assert len(enriched["options"]) == 4
+    assert len(enriched["options"]) == 2
+    labels = [o["label"] for o in enriched["options"]]
+    assert labels == ["Confirm & Submit", "Edit Again"]
     assert mcq_uses_interactive_delivery(enriched) is True
 
 

@@ -89,17 +89,19 @@ def _pad_edit_mcq_for_whatsapp(step: dict) -> dict:
         return step
 
     opts = list(step.get("options") or [])
+    out = dict(step)
+
+    # Confirm & Submit / Edit Again only — no extra navigation rows.
+    if field == "__edit_post__":
+        if not out.get("twilio_list_prompt"):
+            prompt = str(out.get("prompt") or "").strip()
+            out["twilio_list_prompt"] = prompt.split("\n")[0] if prompt else "Choose option"
+        return out
+
     if len(opts) >= 4:
-        out = dict(step)
+        pass
     else:
         padded = list(opts)
-        if field == "__edit_post__":
-            if not any(o.get("value") == "review_summary" for o in padded):
-                padded.append({
-                    "label": "Review summary",
-                    "value": "review_summary",
-                    "whatsapp_label": "Review summary",
-                })
         if not any(o.get("value") == "back_to_sections" for o in padded):
             padded.append({
                 "label": "Back to menu",
@@ -405,14 +407,6 @@ def process_edit_turn(
         step = _post_edit_step()
         chosen = _resolve_mcq(step, text, button_text=button_text, button_payload=button_payload, list_id=list_id)
         if chosen:
-            if chosen["value"] == "back_to_sections":
-                return _return_to_section_menu(session)
-            if chosen["value"] == "review_summary":
-                review = qb.format_final_review(session, include_footer=False)
-                post = _post_edit_step()
-                _set_outbound_step(session, post)
-                prompt = _prompt_for_step(post)
-                return f"{review}\n\n{prompt}", post, True
             if chosen["value"] == "edit_again":
                 msg, step = enter_edit_mode(session)
                 return msg, step, True
