@@ -80,8 +80,59 @@ def get_outbound_step(session: Session) -> Optional[dict]:
     return session.flow_state.get("edit_outbound_step")
 
 
+def _pad_edit_mcq_for_whatsapp(step: dict) -> dict:
+    """
+    WhatsApp 4-row list templates need exactly 4 options.
+    Pad smaller edit menus with navigation rows so list-picker works (not plain text).
+    """
+    field = str(step.get("field", ""))
+    if not field.startswith("__edit_") or step.get("type") != "mcq":
+        return step
+
+    opts = list(step.get("options") or [])
+    if len(opts) >= 4:
+        out = dict(step)
+    else:
+        padded = list(opts)
+        if field == "__edit_post__":
+            if not any(o.get("value") == "review_summary" for o in padded):
+                padded.append({
+                    "label": "Review summary",
+                    "value": "review_summary",
+                    "whatsapp_label": "Review summary",
+                })
+        if not any(o.get("value") == "back_to_sections" for o in padded):
+            padded.append({
+                "label": "Back to menu",
+                "value": "back_to_sections",
+                "whatsapp_label": "Back to menu",
+            })
+        while len(padded) < 4:
+            padded.append({
+                "label": "Back to menu",
+                "value": "back_to_sections",
+                "whatsapp_label": "Back to menu",
+            })
+        out = {**step, "options": padded[:4]}
+
+    if not out.get("twilio_list_prompt"):
+        prompt = str(out.get("prompt") or "").strip()
+        out["twilio_list_prompt"] = prompt.split("\n")[0] if prompt else "Choose option"
+    return out
+
+
+def _return_to_section_menu(session: Session) -> tuple[str, dict, bool]:
+    session.flow_state["edit_phase"] = "section"
+    session.flow_state.pop("edit_section", None)
+    session.flow_state.pop("edit_field", None)
+    step = _section_menu_step()
+    _set_outbound_step(session, step)
+    return _prompt_for_step(step), step, True
+
+
 def _set_outbound_step(session: Session, step: Optional[dict]) -> None:
     if step and step.get("type") == "mcq":
+        step = _pad_edit_mcq_for_whatsapp(step)
         step = qb.enrich_mcq_step_for_whatsapp(step)
     if step:
         session.flow_state["edit_outbound_step"] = step
@@ -154,7 +205,10 @@ def _file_action_step() -> dict:
         "type": "mcq",
         "field": "__edit_file_action__",
         "prompt": "What would you like to do with your uploaded files?",
-        "options": list(_FILE_ACTION_OPTIONS),
+        "twilio_list_prompt": "What would you like to do with your uploaded files?",
+        "options": list(_FILE_ACTION_OPTIONS) + [
+            {"label": "Back to menu", "value": "back_to_sections", "whatsapp_label": "Back to menu"},
+        ],
     }
 
 
@@ -164,6 +218,7 @@ def _post_edit_step() -> dict:
         "type": "mcq",
         "field": "__edit_post__",
         "prompt": "Does everything look correct?",
+        "twilio_list_prompt": "Does everything look correct?",
         "options": list(_POST_EDIT_OPTIONS),
     }
 
@@ -351,6 +406,14 @@ def process_edit_turn(
         step = _post_edit_step()
         chosen = _resolve_mcq(step, text, button_text=button_text, button_payload=button_payload, list_id=list_id)
         if chosen:
+            if chosen["value"] == "back_to_sections":
+                return _return_to_section_menu(session)
+            if chosen["value"] == "review_summary":
+                review = qb.format_final_review(session, include_footer=False)
+                post = _post_edit_step()
+                _set_outbound_step(session, post)
+                prompt = _prompt_for_step(post)
+                return f"{review}\n\n{prompt}", post, True
             if chosen["value"] == "edit_again":
                 msg, step = enter_edit_mode(session)
                 return msg, step, True
@@ -392,6 +455,8 @@ def process_edit_turn(
             _set_outbound_step(session, step)
             return hybrid_flow.invalid_choice_reply(step), step, True
         action = chosen["value"]
+        if action == "back_to_sections":
+            return _return_to_section_menu(session)
         if action == "remove_existing_file":
             session.attachments = []
             se.mark_field_validated(session, "attachments", "skipped")
@@ -411,6 +476,8 @@ def process_edit_turn(
         if not chosen:
             _set_outbound_step(session, step)
             return hybrid_flow.invalid_choice_reply(step), step, True
+        if chosen["value"] == "back_to_sections":
+            return _return_to_section_menu(session)
         field = chosen["value"]
         return _start_field_edit(session, field)
 

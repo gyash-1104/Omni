@@ -137,19 +137,18 @@ def mcq_uses_interactive_delivery(step: Optional[dict[str, Any]]) -> bool:
 
 
 def _variable_mcq_list_sid(option_count: int) -> str:
+    fallback = str(getattr(settings, "twilio_whatsapp_interactive_content_sid", "") or "").strip()
     if option_count == 5:
-        sid = (
+        return (
             str(getattr(settings, "twilio_mcq_list_5_content_sid", "") or "").strip()
-            or str(getattr(settings, "twilio_whatsapp_interactive_content_sid", "") or "").strip()
+            or fallback
         )
-    elif option_count == 4:
-        sid = (
+    if option_count in (2, 3, 4):
+        return (
             str(getattr(settings, "twilio_mcq_list_4_content_sid", "") or "").strip()
-            or str(getattr(settings, "twilio_whatsapp_interactive_content_sid", "") or "").strip()
+            or fallback
         )
-    else:
-        sid = ""
-    return sid
+    return ""
 
 
 def _should_send_interactive(step: dict[str, Any]) -> bool:
@@ -206,7 +205,7 @@ def enrich_whatsapp_mcq_step(step: Optional[dict[str, Any]]) -> Optional[dict[st
         return out
 
     variable_sid = _variable_mcq_list_sid(len(quick_opts))
-    if variable_sid and len(quick_opts) in (4, 5):
+    if variable_sid and 2 <= len(quick_opts) <= 5:
         out["twilio_content_sid"] = variable_sid
         out["require_content_variables"] = True
         out["twilio_list_slots"] = len(quick_opts)
