@@ -92,6 +92,46 @@ def test_post_submit_message_intent():
     assert _is_new_enquiry_intent("Hi there")
 
 
+def test_greeting_detection_not_name_false_positive():
+    assert is_greeting_message("Hiiii")
+    assert is_greeting_message("Hello")
+    assert is_greeting_message("Hi there")
+    assert not is_greeting_message("Hitesh")
+    assert not is_greeting_message("Vidya")
+
+
+@pytest.mark.asyncio
+async def test_greeting_mid_flow_restarts_from_eva_intro():
+    from backend.utils.session_idle import start_fresh_session, had_conversation_progress
+    from backend.storage.redis_store import save_session, get_session
+
+    session_id = "wa_whatsapp:+919888877777"
+    phone = "whatsapp:+919888877777"
+    session = Session(
+        session_id=session_id,
+        phone_number=phone,
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+    )
+    se.start_client_stage(session)
+    se.mark_field_validated(session, "client_name", "Vidya")
+    se.mark_field_validated(session, "city", "Mysore")
+    se.mark_field_validated(session, "property_location", "Mysore, kuvemunagar")
+    await save_session(session)
+    assert had_conversation_progress(session)
+    step = hybrid_flow.get_current_step(session)
+    assert step is not None
+    assert step["field"] == "email"
+
+    await start_fresh_session(session_id, phone, reason="greeting_restart")
+    session = await get_session(session_id)
+    controller = ConversationController()
+    resp = await controller.process_message(session, "Hiiii", channel="whatsapp")
+    assert "I'm EVA" in resp.text
+    assert "What is your full name?" in resp.text
+    assert session.extracted_fields.get("client_name") != "Hiiii"
+
+
 @pytest.mark.asyncio
 async def test_name_after_restart45_does_not_repeat_eva_intro():
     session = Session(
