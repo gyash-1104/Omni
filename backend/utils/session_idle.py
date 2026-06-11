@@ -3,6 +3,7 @@ Session idle timeout — end in-progress chats after inactivity.
 """
 from __future__ import annotations
 
+import re
 from datetime import datetime, timedelta
 
 from backend.config import get_settings
@@ -35,14 +36,34 @@ def _normalize_msg(message: str) -> str:
     return (message or "").strip().upper().replace(" ", "")
 
 
+_GREETING_EXACT = frozenset({
+    "HI", "HII", "HIII", "HIIII", "HIIIII",
+    "HELLO", "HELLOO", "HELLOOO",
+    "HEY", "HEYY", "HEYYY", "HEYA",
+    "HLO", "HLW", "HOWDY", "YO",
+    "HITHERE", "HELLOTHERE", "HEYTHERE",
+    "NEWENQUIRY", "NEWPROJECT", "STARTOVER", "STARTAGAIN",
+})
+
+
 def is_greeting_message(message: str) -> bool:
-    """Hi/Hello-style openers — restart silently at EVA intro without a timeout banner."""
+    """Hi/Hello-style openers — restart at EVA intro (whole-message match, not names like Hitesh)."""
     norm = _normalize_msg(message)
     if not norm:
         return False
-    if norm in ("NEWENQUIRY", "NEWPROJECT", "STARTOVER", "STARTAGAIN"):
+    if norm in _GREETING_EXACT:
         return True
-    return any(norm.startswith(g) for g in ("HI", "HELLO", "HEY", "HLO", "HLW"))
+    if re.fullmatch(r"H+I+", norm):
+        return True
+    if re.fullmatch(r"HELLO+", norm):
+        return True
+    if re.fullmatch(r"HEY+", norm):
+        return True
+    if norm.startswith("GOOD") and any(
+        part in norm for part in ("MORNING", "EVENING", "AFTERNOON", "NIGHT")
+    ):
+        return True
+    return False
 
 
 def had_conversation_progress(session: Session) -> bool:

@@ -16,6 +16,8 @@ from backend.agents.voice.voice_response_optimizer import optimize_for_voice
 from backend.utils.logger import log_event
 from backend.utils.session_idle import (
     is_session_idle_expired,
+    is_greeting_message,
+    had_conversation_progress,
     idle_timeout_notice,
     should_prepend_idle_notice,
     start_fresh_session,
@@ -130,6 +132,16 @@ async def vapi_chat_completions(request: Request):
         stale_session = session
         show_idle_notice = should_prepend_idle_notice(stale_session, last_user_msg)
         await start_fresh_session(session_id, phone, channel="voice", reason="idle_timeout")
+        session = await get_session(session_id)
+
+    if (
+        session
+        and last_user_msg
+        and not session.summary_generated
+        and is_greeting_message(last_user_msg)
+        and had_conversation_progress(session)
+    ):
+        await start_fresh_session(session_id, phone, channel="voice", reason="greeting_restart")
         session = await get_session(session_id)
 
     if session is None:

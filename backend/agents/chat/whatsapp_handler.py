@@ -28,6 +28,8 @@ from backend.agents.chat.whatsapp_interactive import build_inbound_user_message,
 from backend.utils.logger import log_event
 from backend.utils.session_idle import (
     is_session_idle_expired,
+    is_greeting_message,
+    had_conversation_progress,
     idle_timeout_notice,
     should_prepend_idle_notice,
     start_fresh_session,
@@ -60,13 +62,7 @@ def _is_post_submit_polite_reply(message: str) -> bool:
 
 def _is_new_enquiry_intent(message: str) -> bool:
     """Explicit signal to start a fresh enquiry after a previous submit."""
-    norm = _normalize_user_text(message)
-    if not norm:
-        return False
-    if norm in ("NEWENQUIRY", "NEWPROJECT", "STARTOVER", "STARTAGAIN"):
-        return True
-    greeting_starts = ("HI", "HELLO", "HEY", "HLO", "HLW")
-    return any(norm.startswith(g) for g in greeting_starts)
+    return is_greeting_message(message)
 
 
 def _session_is_submitted(session: Session) -> bool:
@@ -246,6 +242,18 @@ async def _handle_whatsapp_message_impl(
     ):
         print(f"[WhatsApp] New enquiry restart for {phone_number} msg={user_message!r}")
         await start_fresh_session(session_id, phone_number, reason="new_enquiry_after_submit")
+        session = await get_session(session_id)
+
+    # Mid-flow greeting (Hi/Hello) — start over from EVA intro, same as a new chat.
+    if (
+        session
+        and user_message
+        and not _session_is_submitted(session)
+        and is_greeting_message(user_message)
+        and had_conversation_progress(session)
+    ):
+        print(f"[WhatsApp] Greeting restart for {phone_number} msg={user_message!r}")
+        await start_fresh_session(session_id, phone_number, reason="greeting_restart")
         session = await get_session(session_id)
 
     if session is None:
