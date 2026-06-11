@@ -3,6 +3,7 @@ TatvaOps – WhatsApp Webhook Handler (Twilio)
 EVA routing + specialized consultants + media uploads.
 """
 from __future__ import annotations
+import asyncio
 from datetime import datetime
 from typing import Optional
 
@@ -30,8 +31,7 @@ from backend.utils.session_idle import (
     is_session_idle_expired,
     is_greeting_message,
     had_conversation_progress,
-    idle_timeout_notice,
-    should_prepend_idle_notice,
+    build_idle_fresh_start_reply,
     start_fresh_session,
 )
 
@@ -221,15 +221,20 @@ async def _handle_whatsapp_message_impl(
     list_id: str = "",
 ):
     session = await get_session(session_id)
-    show_idle_notice = False
 
-    # In-progress chat idle > N minutes — clear session; next reply starts from EVA intro.
+    # In-progress chat idle > N minutes — reset and send EVA intro; discard stale reply.
     if session and (user_message or num_media > 0) and is_session_idle_expired(session):
         stale_session = session
         print(f"[WhatsApp] Idle timeout reset for {phone_number} (>{_settings.session_idle_timeout_minutes}m)")
-        show_idle_notice = should_prepend_idle_notice(stale_session, user_message)
         await start_fresh_session(session_id, phone_number, reason="idle_timeout")
         session = await get_session(session_id)
+        reply = build_idle_fresh_start_reply(stale_session, user_message)
+        se.start_client_stage(session)
+        session.add_message(MessageRole.ASSISTANT, reply)
+        await save_session(session)
+        await supabase_store.upsert_session_log(session)
+        await send_whatsapp_message(to=phone_number, body=reply)
+        return
 
     # After submit: only greetings / explicit new-enquiry phrases restart EVA flow.
     # Polite replies (Thank you, OK, etc.) keep the submitted session.
@@ -353,8 +358,6 @@ async def _handle_whatsapp_message_impl(
     if not reply:
         print(f"[WhatsApp] Empty reply for message={user_message!r}")
         reply = "Thanks — could you repeat that? Please continue with the current step."
-    if show_idle_notice:
-        reply = idle_timeout_notice() + reply
 
     session_out = agent_response.session
     if edit_flow.is_active(session_out):
@@ -390,9 +393,28 @@ async def _handle_whatsapp_message_impl(
         if menu_body not in reply:
             reply = f"{reply}\n\n{menu_body}".strip() if reply else menu_body
     if uses_interactive_list:
-        # Send transition text first, then the list-picker body (like contact-time step).
         prompt_text = str(outbound_step.get("prompt", "")).strip()
         list_prompt = str(outbound_step.get("twilio_list_prompt", "")).strip()
+        is_service_selection_list = (
+            outbound_step.get("field") == "service_category"
+            or outbound_step.get("stage") == "service_selection"
+        )
+        if is_service_selection_list:
+            transition = (reply or "").strip()
+            for chunk in (prompt_text, list_prompt):
+                if chunk:
+                    transition = transition.replace(chunk, "").strip()
+            if not transition:
+                transition = hybrid_flow.SERVICE_SELECTION_TRANSITION
+            await send_whatsapp_message(to=phone_number, body=transition)
+            await asyncio.sleep(1.0)
+            await send_whatsapp_flow(
+                to=phone_number,
+                body=list_prompt or prompt_text or "Choose your service",
+                step=outbound_step,
+            )
+            return
+        # Other interactive lists: transition text first, then the list-picker body.
         if reply:
             cleaned = reply
             for chunk in (prompt_text, list_prompt):

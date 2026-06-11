@@ -24,6 +24,8 @@ STAGE_BRIDGES = {
     "service_questionnaire": "Thanks for sharing. Let us understand your requirements.",
 }
 
+SERVICE_SELECTION_TRANSITION = "Got it. Let us continue."
+
 
 def init_flow(session: Session) -> None:
     se.reconcile_session(session)
@@ -378,6 +380,8 @@ def _next_step_message(session: Session) -> Optional[str]:
                 return _enter_final_review(session)
             step = get_current_step(session)
         if not step:
+            if se.fs_current_stage(session) == "service_selection":
+                return SERVICE_SELECTION_TRANSITION
             return None
     last = session.flow_state.get("last_stage_shown")
     stage = step.get("stage")

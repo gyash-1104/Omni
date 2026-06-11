@@ -87,6 +87,21 @@ def should_prepend_idle_notice(session: Session, user_message: str) -> bool:
     return had_conversation_progress(session)
 
 
+def build_idle_fresh_start_reply(stale_session: Session, user_message: str) -> str:
+    """
+    Full EVA welcome after idle timeout.
+    The inbound message is discarded — user must answer from the name question onward.
+    """
+    from backend.intelligence import hybrid_flow
+
+    notice = (
+        idle_timeout_notice()
+        if should_prepend_idle_notice(stale_session, user_message)
+        else ""
+    )
+    return notice + hybrid_flow.first_client_message()
+
+
 async def start_fresh_session(
     session_id: str,
     phone_number: str,

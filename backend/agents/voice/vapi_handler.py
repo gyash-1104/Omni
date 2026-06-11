@@ -7,9 +7,10 @@ from datetime import datetime
 from typing import Any
 from fastapi import APIRouter, Request, HTTPException
 
-from backend.schemas.session import Session, ConversationStage
+from backend.schemas.session import Session, ConversationStage, MessageRole
 from backend.intelligence.conversation_controller import get_controller
 from backend.intelligence.consultants.registry import get_opening_message
+from backend.intelligence import stage_engine as se
 from backend.storage.redis_store import get_session, save_session
 from backend.storage import supabase_store
 from backend.agents.voice.voice_response_optimizer import optimize_for_voice
@@ -18,8 +19,7 @@ from backend.utils.session_idle import (
     is_session_idle_expired,
     is_greeting_message,
     had_conversation_progress,
-    idle_timeout_notice,
-    should_prepend_idle_notice,
+    build_idle_fresh_start_reply,
     start_fresh_session,
 )
 
@@ -127,12 +127,16 @@ async def vapi_chat_completions(request: Request):
 
     # Load or create session
     session = await get_session(session_id)
-    show_idle_notice = False
     if session and is_session_idle_expired(session):
         stale_session = session
-        show_idle_notice = should_prepend_idle_notice(stale_session, last_user_msg)
         await start_fresh_session(session_id, phone, channel="voice", reason="idle_timeout")
         session = await get_session(session_id)
+        reply = build_idle_fresh_start_reply(stale_session, last_user_msg)
+        se.start_client_stage(session)
+        session.add_message(MessageRole.ASSISTANT, reply)
+        await save_session(session)
+        await supabase_store.upsert_session_log(session)
+        return _build_response(optimize_for_voice(reply), is_streaming)
 
     if (
         session
@@ -173,8 +177,6 @@ async def vapi_chat_completions(request: Request):
 
     # Optimize for voice
     voice_text = optimize_for_voice(agent_response.text)
-    if show_idle_notice:
-        voice_text = optimize_for_voice(idle_timeout_notice() + agent_response.text)
 
     # Persist
     await save_session(agent_response.session)
