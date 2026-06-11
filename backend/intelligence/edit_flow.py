@@ -587,6 +587,15 @@ def wants_confirm_submit(
     return any(lower == p or lower.startswith(p + " ") for p in confirm_phrases)
 
 
-def wants_edit_again(message: str) -> bool:
+def wants_edit_again(
+    message: str,
+    *,
+    list_id: str = "",
+    button_payload: str = "",
+    button_text: str = "",
+) -> bool:
+    tap = (list_id or button_payload or button_text or "").strip().lower()
+    if tap in ("edit_details", "edit details", "edit_again", "edit again"):
+        return True
     lower = (message or "").strip().lower()
     return lower in ("edit", "edit details", "edit again", "change", "fix")

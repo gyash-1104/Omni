@@ -69,6 +69,41 @@ async def send_whatsapp_message(to: str, body: str) -> bool:
     return ok
 
 
+async def send_context_then_mcq_list(
+    to: str,
+    context_body: str,
+    step: Optional[dict[str, Any]],
+) -> bool:
+    """
+    Send a long text block first, then a separate WhatsApp list-picker.
+    Avoids appending numbered fallbacks to a multi-paragraph summary.
+    """
+    enriched = enrich_whatsapp_mcq_step(step) if step else None
+    if (
+        enriched
+        and enriched.get("type") == "mcq"
+        and mcq_uses_interactive_delivery(enriched)
+    ):
+        import asyncio
+
+        list_prompt = str(
+            enriched.get("twilio_list_prompt") or enriched.get("prompt") or "Choose option"
+        ).strip()
+        if (context_body or "").strip():
+            await send_whatsapp_message(to, context_body.strip())
+            await asyncio.sleep(1.0)
+        return await send_whatsapp_flow(to, list_prompt, step=enriched)
+    if enriched and enriched.get("type") == "mcq":
+        prompt_only = str(enriched.get("prompt") or "Please choose one option.").strip()
+        ok = True
+        if (context_body or "").strip():
+            ok = await send_whatsapp_message(to, context_body.strip())
+        fallback = _format_mcq_plain_fallback(prompt_only, enriched)
+        sent = await _send_plain(to, fallback)
+        return ok and sent
+    return await send_whatsapp_flow(to, context_body, step=enriched)
+
+
 async def send_whatsapp_flow(to: str, body: str, step: Optional[dict[str, Any]] = None) -> bool:
     """
     Send flow message. For MCQ steps, tries Twilio interactive options when
@@ -161,7 +196,7 @@ def _should_send_interactive(step: dict[str, Any]) -> bool:
         return bool(_resolve_content_sid(step))
     if field == "service_category":
         return bool(getattr(settings, "twilio_service_selection_content_sid", ""))
-    if field.startswith("__edit_"):
+    if field.startswith("__edit_") or field == "__final_review__":
         return bool(_variable_mcq_list_sid(len([o for o in (step.get("options") or []) if not _is_other_option(o)])))
     return False
 
@@ -202,7 +237,13 @@ def enrich_whatsapp_mcq_step(step: Optional[dict[str, Any]]) -> Optional[dict[st
 
     if out.get("twilio_content_sid"):
         field = str(out.get("field", ""))
-        if out.get("require_content_variables") or field.startswith("service_q") or field.startswith("__edit_") or field == "preferred_contact_time":
+        if (
+            out.get("require_content_variables")
+            or field.startswith("service_q")
+            or field.startswith("__edit_")
+            or field == "__final_review__"
+            or field == "preferred_contact_time"
+        ):
             out["require_content_variables"] = True
         return out
 

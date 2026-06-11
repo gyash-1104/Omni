@@ -9,7 +9,7 @@ from backend.schemas.session import Session, ConversationStage, MessageRole
 from backend.intelligence.persona import GUARDRAIL_REDIRECT
 from backend.intelligence import hybrid_flow
 from backend.intelligence import stage_engine as se
-from backend.intelligence.qualification_builder import format_final_review
+from backend.intelligence.qualification_builder import format_final_review, get_final_review_outbound_step
 from backend.intelligence import edit_flow
 from backend.intelligence.lead_scorer import apply_lead_score
 from backend.intelligence.nova_router import (
@@ -174,7 +174,12 @@ class ConversationController:
                         session.add_message(MessageRole.ASSISTANT, reply)
                         return AgentResponse(text=reply, session=session)
 
-            if edit_flow.wants_edit_again(user_message) or lower in ("edit", "edit details", "change", "fix"):
+            if edit_flow.wants_edit_again(
+                user_message,
+                list_id=list_id or "",
+                button_payload=button_payload or "",
+                button_text=button_text or "",
+            ):
                 msg, _step = edit_flow.enter_edit_mode(session)
                 session.add_message(MessageRole.ASSISTANT, msg)
                 return AgentResponse(text=msg, session=session)
@@ -208,7 +213,8 @@ class ConversationController:
                     summary_generated=True,
                 )
 
-            hold = "Please reply *Confirm & Submit* or *Edit Details*."
+            review_step = get_final_review_outbound_step(session)
+            hold = hybrid_flow.invalid_choice_reply(review_step)
             session.add_message(MessageRole.ASSISTANT, hold)
             return AgentResponse(text=hold, session=session)
 

@@ -16,11 +16,13 @@ from backend.intelligence import hybrid_flow
 from backend.intelligence import edit_flow
 from backend.intelligence import stage_engine as se
 from backend.intelligence.nova_router import get_service_selection_outbound_step
+from backend.intelligence.qualification_builder import get_final_review_outbound_step
 from backend.storage.redis_store import get_session, save_session
 from backend.storage import supabase_store
 from backend.storage.media_store import save_attachment
 from backend.agents.chat.twilio_client import (
     enrich_whatsapp_mcq_step,
+    send_context_then_mcq_list,
     send_whatsapp_message,
     send_whatsapp_flow,
     twiml_response,
@@ -287,8 +289,8 @@ async def _handle_whatsapp_message_impl(
                 reply, outbound_step, _handled = edit_flow.complete_file_upload(session)
                 await save_session(session)
                 await supabase_store.upsert_session_log(session)
-                await send_whatsapp_message(to=phone_number, body=file_ack)
-                await send_whatsapp_flow(to=phone_number, body=reply, step=outbound_step)
+                combined = f"{file_ack}\n\n{reply}".strip()
+                await send_context_then_mcq_list(phone_number, combined, outbound_step)
                 return
             if hybrid_flow.pending_file_upload(session):
                 follow_up = hybrid_flow.complete_attachment_upload(session)
@@ -362,6 +364,8 @@ async def _handle_whatsapp_message_impl(
     session_out = agent_response.session
     if edit_flow.is_active(session_out):
         outbound_step = edit_flow.get_outbound_step(session_out)
+    elif se.fs_current_stage(session_out) == "final_review":
+        outbound_step = get_final_review_outbound_step(session_out)
     else:
         outbound_step = hybrid_flow.get_current_step(session_out)
         if (
@@ -399,6 +403,7 @@ async def _handle_whatsapp_message_impl(
             outbound_step.get("field") == "service_category"
             or outbound_step.get("stage") == "service_selection"
         )
+        is_final_review_list = outbound_step.get("field") in ("__final_review__", "__edit_post__")
         if is_service_selection_list:
             transition = (reply or "").strip()
             for chunk in (prompt_text, list_prompt):
@@ -413,6 +418,9 @@ async def _handle_whatsapp_message_impl(
                 body=list_prompt or prompt_text or "Choose your service",
                 step=outbound_step,
             )
+            return
+        if is_final_review_list:
+            await send_context_then_mcq_list(phone_number, reply, outbound_step)
             return
         # Other interactive lists: transition text first, then the list-picker body.
         if reply:

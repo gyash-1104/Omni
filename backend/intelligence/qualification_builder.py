@@ -65,7 +65,7 @@ def _resolve_mcq_twilio_sid(step: dict) -> str | None:
     field = str(step.get("field", ""))
     if field == "preferred_contact_time":
         return CONTACT_TIME_TWILIO_CONTENT_SID
-    if field.startswith("service_q") or field.startswith("__edit_"):
+    if field.startswith("service_q") or field.startswith("__edit_") or field == "__final_review__":
         return _variable_mcq_list_sid(_mcq_option_count(step))
     return None
 
@@ -79,7 +79,12 @@ def _attach_mcq_list_delivery(out: dict, sid: str, step: dict) -> dict:
     else:
         out["twilio_list_prompt"] = str(step.get("prompt") or "").strip()
     count = _mcq_option_count(step)
-    if sid == CONTACT_TIME_TWILIO_CONTENT_SID or field.startswith("service_q") or field.startswith("__edit_"):
+    if (
+        sid == CONTACT_TIME_TWILIO_CONTENT_SID
+        or field.startswith("service_q")
+        or field.startswith("__edit_")
+        or field == "__final_review__"
+    ):
         out["twilio_list_slots"] = count
     return out
 
@@ -231,7 +236,38 @@ def _humanize(field: str, value: Any, *, service_category: str = "") -> str:
     return display_label(field, value, service_category=service_category)
 
 
-def format_final_review(session, *, include_footer: bool = True) -> str:
+FINAL_REVIEW_ACTION_OPTIONS = [
+    {"label": "Confirm & Submit", "value": "confirm_submit"},
+    {"label": "Edit Details", "value": "edit_details"},
+]
+
+
+def final_review_action_step() -> dict:
+    return {
+        "id": "final_review_actions",
+        "type": "mcq",
+        "field": "__final_review__",
+        "prompt": "Does everything look correct?",
+        "twilio_list_prompt": "Does everything look correct?",
+        "options": list(FINAL_REVIEW_ACTION_OPTIONS),
+    }
+
+
+def prepare_final_review_outbound(session) -> dict:
+    """Attach WhatsApp list-picker metadata for Confirm & Submit / Edit Details."""
+    step = _enrich_mcq_step(final_review_action_step())
+    session.flow_state["final_review_outbound_step"] = step
+    return step
+
+
+def get_final_review_outbound_step(session) -> dict:
+    stored = (session.flow_state or {}).get("final_review_outbound_step")
+    if stored:
+        return _enrich_mcq_step(dict(stored))
+    return prepare_final_review_outbound(session)
+
+
+def format_final_review(session, *, include_footer: bool | None = None) -> str:
     """Structured preview before summary generation."""
     from backend.intelligence.stage_engine import can_enter_final_review, missing_fields_report
     if not can_enter_final_review(session):
@@ -272,6 +308,8 @@ def format_final_review(session, *, include_footer: bool = True) -> str:
         "*Files*",
         f"- {_humanize('attachments', ef.get('attachments', 'none'), service_category=service_key)}",
     ]
+    if include_footer is None:
+        include_footer = not (session.flow_state or {}).get("final_review_outbound_step")
     if include_footer:
         blocks.extend([
             "",
