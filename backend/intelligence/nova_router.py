@@ -140,6 +140,33 @@ def detect_service(user_message: str) -> Optional[ServiceCategory]:
     return None
 
 
+def _allowed_service_values_from_step(step: dict) -> set[str]:
+    """Service category values shown on the current list page (excludes *View more*)."""
+    allowed: set[str] = set()
+    for opt in step.get("options") or []:
+        value = opt.get("value")
+        if value and value != SERVICE_MORE_VALUE:
+            allowed.add(str(value))
+    return allowed
+
+
+def detect_service_from_step(selection_input: str, step: dict) -> Optional[ServiceCategory]:
+    """
+    Match a service only if it appears on the given list step.
+    Prevents free-text like "interior" from matching page-1 services while on page 2.
+    """
+    allowed = _allowed_service_values_from_step(step)
+    if not allowed:
+        return detect_service(selection_input)
+
+    category = detect_service(selection_input)
+    if category is None:
+        return None
+    if category.value in allowed:
+        return category
+    return None
+
+
 def get_consultant_display_name(category: ServiceCategory) -> str:
     for _n, cat, _label, name in SERVICE_MENU:
         if cat == category:

@@ -13,7 +13,7 @@ from backend.intelligence.qualification_builder import format_final_review
 from backend.intelligence import edit_flow
 from backend.intelligence.lead_scorer import apply_lead_score
 from backend.intelligence.nova_router import (
-    detect_service,
+    detect_service_from_step,
     is_service_more_selection,
     get_consultant_display_name,
     get_service_selection_outbound_step,
@@ -262,9 +262,9 @@ class ConversationController:
                 session.add_message(MessageRole.ASSISTANT, msg)
                 return AgentResponse(text=msg, session=session)
 
-            category = detect_service(selection_input)
+            step = get_service_selection_outbound_step(session)
+            category = detect_service_from_step(selection_input, step)
             if category is None:
-                step = get_service_selection_outbound_step(session)
                 msg = hybrid_flow.invalid_choice_reply(step)
                 session.add_message(MessageRole.ASSISTANT, msg)
                 return AgentResponse(text=msg, session=session)

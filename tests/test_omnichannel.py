@@ -15,6 +15,7 @@ from backend.utils.session_idle import (
     idle_timeout_notice,
     should_prepend_idle_notice,
     is_greeting_message,
+    build_idle_fresh_start_reply,
 )
 from datetime import datetime, timedelta
 
@@ -71,6 +72,40 @@ def test_mid_flow_answer_after_idle_shows_timeout_banner():
         last_active=datetime.utcnow() - timedelta(minutes=10),
     )
     assert should_prepend_idle_notice(session, "Rahul Sharma") is True
+
+
+def test_idle_fresh_start_reply_includes_eva_intro_not_stale_answer():
+    """Stale MCQ/list reply after timeout must restart at EVA intro + name question."""
+    stale = Session(
+        session_id="wa_test",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+        flow_state={"current_stage": "consultant_assignment"},
+        turn_count=5,
+        last_active=datetime.utcnow() - timedelta(minutes=10),
+    )
+    reply = build_idle_fresh_start_reply(stale, "Office / Commercial S...")
+    assert "inactivity" in reply
+    assert "I'm EVA" in reply
+    assert "What is your full name?" in reply
+    assert "Which city" not in reply
+
+
+def test_idle_fresh_start_reply_greeting_skips_timeout_banner():
+    stale = Session(
+        session_id="wa_test",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+        flow_state={"current_stage": "client_details"},
+        turn_count=2,
+        last_active=datetime.utcnow() - timedelta(minutes=10),
+    )
+    reply = build_idle_fresh_start_reply(stale, "Hi")
+    assert "inactivity" not in reply
+    assert "I'm EVA" in reply
+    assert "What is your full name?" in reply
 
 
 def test_stale_intro_session_hello_no_timeout_banner():
@@ -334,6 +369,29 @@ def test_lead_scorer():
     assert tier in ("hot", "warm", "cold")
 
 
+def test_after_client_details_transition_before_service_selection():
+    session = Session(
+        session_id="t",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+    )
+    se.start_client_stage(session)
+    for field, value in (
+        ("client_name", "Vidya"),
+        ("city", "Hyderabad"),
+        ("property_location", "HSR"),
+        ("email", "skipped"),
+        ("preferred_contact_time", "evening"),
+        ("phone_number", "+91999"),
+    ):
+        se.mark_field_validated(session, field, value)
+    se.reconcile_session(session)
+    assert se.fs_current_stage(session) == "service_selection"
+    msg = hybrid_flow._next_step_message(session)
+    assert msg == hybrid_flow.SERVICE_SELECTION_TRANSITION
+
+
 def test_edit_file_action_uses_clickable_list(monkeypatch):
     from backend.config import get_settings
     from backend.intelligence import edit_flow
@@ -522,8 +580,7 @@ async def test_farm_descriptive_answer_not_guardrail_redirect():
     assert "upload" in resp.text.lower() or "file" in resp.text.lower()
 
 
-@pytest.mark.asyncio
-async def test_invalid_service_selection_reasks():
+def _session_ready_for_service_selection() -> Session:
     session = Session(
         session_id="wa_whatsapp:+919999999999",
         phone_number="whatsapp:+919999999999",
@@ -542,8 +599,51 @@ async def test_invalid_service_selection_reasks():
     se.mark_stage_complete(session, "client_details")
     se.reconcile_session(session)
     assert se.needs_service_selection(session)
+    return session
+
+
+@pytest.mark.asyncio
+async def test_invalid_service_selection_reasks():
+    session = _session_ready_for_service_selection()
 
     controller = ConversationController()
     resp = await controller.process_message(session, "banana smoothie", channel="whatsapp")
+    assert "Sorry" in resp.text
+    assert session.service_category is None
+
+
+@pytest.mark.asyncio
+async def test_page2_service_selection_rejects_off_list_service():
+    """Typing a page-1 service (e.g. interior) while on Choose Other Services must re-ask."""
+    session = _session_ready_for_service_selection()
+    session.flow_state["service_list_page"] = 2
+
+    controller = ConversationController()
+    resp = await controller.process_message(session, "interior", channel="whatsapp")
+    assert "Sorry" in resp.text
+    assert "Choose Other Services" in resp.text
+    assert session.service_category is None
+    assert session.flow_state.get("service_list_page") == 2
+
+
+@pytest.mark.asyncio
+async def test_page2_service_selection_accepts_list_option():
+    from backend.schemas.service import ServiceCategory
+
+    session = _session_ready_for_service_selection()
+    session.flow_state["service_list_page"] = 2
+
+    controller = ConversationController()
+    resp = await controller.process_message(session, "solar", channel="whatsapp")
+    assert session.service_category == ServiceCategory.SOLAR
+    assert "Kavya" in resp.text
+
+
+@pytest.mark.asyncio
+async def test_page1_service_selection_rejects_page2_service():
+    session = _session_ready_for_service_selection()
+
+    controller = ConversationController()
+    resp = await controller.process_message(session, "solar", channel="whatsapp")
     assert "Sorry" in resp.text
     assert session.service_category is None
