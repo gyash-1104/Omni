@@ -26,7 +26,6 @@ _CLIENT_FIELDS: list[tuple[str, str]] = [
 
 _SECTION_OPTIONS = [
     {"label": "Client Details", "value": "client_details"},
-    {"label": "Service Selection", "value": "service_selection"},
     {"label": "Project Requirements", "value": "project_requirements"},
     {"label": "Additional Notes", "value": "additional_notes"},
     {"label": "Uploaded Files", "value": "uploaded_files"},
