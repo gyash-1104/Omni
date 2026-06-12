@@ -121,7 +121,8 @@ async def send_whatsapp_flow(to: str, body: str, step: Optional[dict[str, Any]] 
         opt_cap = int(step.get("twilio_option_count") or step.get("twilio_list_slots") or 0)
         if opt_cap:
             quick_opts = quick_opts[:opt_cap]
-        if 1 < len(quick_opts) <= 10:
+        min_opts = 1 if str(step.get("field", "")) == "__final_review__" else 2
+        if min_opts <= len(quick_opts) <= 10:
             sent = await _send_interactive_options(to, body, quick_opts, step=step)
             if sent:
                 return True
@@ -178,6 +179,8 @@ def _variable_mcq_list_sid(option_count: int) -> str:
             str(getattr(settings, "twilio_mcq_list_5_content_sid", "") or "").strip()
             or fallback
         )
+    if option_count == 1:
+        return str(getattr(settings, "twilio_mcq_list_1_content_sid", "") or "").strip()
     if option_count == 2:
         return str(getattr(settings, "twilio_mcq_list_2_content_sid", "") or "").strip()
     if option_count in (3, 4):
@@ -213,7 +216,8 @@ def enrich_whatsapp_mcq_step(step: Optional[dict[str, Any]]) -> Optional[dict[st
 
     options = step.get("options") or []
     quick_opts = [o for o in options if not _is_other_option(o)]
-    if len(quick_opts) < 2:
+    field = str(step.get("field", ""))
+    if len(quick_opts) < 2 and field != "__final_review__":
         return step
 
     from backend.schemas.service import WHATSAPP_SERVICE_LIST_ROWS
@@ -249,7 +253,8 @@ def enrich_whatsapp_mcq_step(step: Optional[dict[str, Any]]) -> Optional[dict[st
         return out
 
     variable_sid = _variable_mcq_list_sid(len(quick_opts))
-    if variable_sid and 2 <= len(quick_opts) <= 5:
+    min_opts = 1 if field == "__final_review__" else 2
+    if variable_sid and min_opts <= len(quick_opts) <= 5:
         out["twilio_content_sid"] = variable_sid
         out["require_content_variables"] = True
         out["twilio_list_slots"] = len(quick_opts)

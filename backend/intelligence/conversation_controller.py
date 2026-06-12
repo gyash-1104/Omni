@@ -146,43 +146,11 @@ class ConversationController:
                 and (
                     session.flow_state.get("final_review_shown")
                     or session.conversation_stage == ConversationStage.CONFIRMATION
-                    or edit_flow.is_active(session)
                 )
             )
         )
         if in_review:
             session.add_message(MessageRole.USER, user_message)
-            lower = user_message.lower().strip()
-
-            if edit_flow.is_active(session):
-                reply, _step, handled = edit_flow.process_edit_turn(
-                    session, user_message,
-                    button_text=button_text, button_payload=button_payload, list_id=list_id,
-                )
-                if handled:
-                    if (
-                        not edit_flow.is_active(session)
-                        and edit_flow.wants_confirm_submit(
-                            user_message,
-                            list_id=list_id or "",
-                            button_payload=button_payload or "",
-                            button_text=button_text or "",
-                        )
-                    ):
-                        pass
-                    else:
-                        session.add_message(MessageRole.ASSISTANT, reply)
-                        return AgentResponse(text=reply, session=session)
-
-            if edit_flow.wants_edit_again(
-                user_message,
-                list_id=list_id or "",
-                button_payload=button_payload or "",
-                button_text=button_text or "",
-            ):
-                msg, _step = edit_flow.enter_edit_mode(session)
-                session.add_message(MessageRole.ASSISTANT, msg)
-                return AgentResponse(text=msg, session=session)
 
             if edit_flow.wants_confirm_submit(
                 user_message,
@@ -243,15 +211,6 @@ class ConversationController:
                 return resp
             session.flow_state["last_stage_shown"] = "client_details"
             return AgentResponse(text=hybrid_flow.first_client_message(), session=session)
-
-        if edit_flow.is_active(session):
-            reply, _step, handled = edit_flow.process_edit_turn(
-                session, user_message,
-                button_text=button_text, button_payload=button_payload, list_id=list_id,
-            )
-            if handled:
-                session.add_message(MessageRole.ASSISTANT, reply)
-                return AgentResponse(text=reply, session=session)
 
         if se.needs_service_selection(session) and not session.flow_state.get("final_review_shown"):
             # Prefer interactive payload signals when present (WhatsApp list/button taps)

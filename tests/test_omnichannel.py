@@ -437,7 +437,7 @@ def test_edit_file_action_uses_clickable_list(monkeypatch):
     assert "Add New File" not in str(enriched.get("prompt", ""))
 
 
-def test_final_review_actions_uses_two_row_list(monkeypatch):
+def test_final_review_actions_uses_one_row_list(monkeypatch):
     from backend.config import get_settings
     from backend.intelligence.qualification_builder import (
         enrich_mcq_step_for_whatsapp,
@@ -446,13 +446,13 @@ def test_final_review_actions_uses_two_row_list(monkeypatch):
     )
     from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
 
-    monkeypatch.setenv("TWILIO_MCQ_LIST_2_CONTENT_SID", "HX2row000000000000000000000000001")
+    monkeypatch.setenv("TWILIO_MCQ_LIST_1_CONTENT_SID", "HX1row000000000000000000000000001")
     monkeypatch.setenv("TWILIO_WHATSAPP_QUICK_REPLY", "true")
     get_settings.cache_clear()
 
     step = enrich_mcq_step_for_whatsapp(final_review_action_step())
-    assert step["twilio_content_sid"] == "HX2row000000000000000000000000001"
-    assert [o["label"] for o in step["options"]] == ["Confirm & Submit", "Edit Details"]
+    assert step["twilio_content_sid"] == "HX1row000000000000000000000000001"
+    assert [o["label"] for o in step["options"]] == ["Confirm & Submit"]
     assert mcq_uses_interactive_delivery(step) is True
 
     session = Session(
@@ -463,6 +463,28 @@ def test_final_review_actions_uses_two_row_list(monkeypatch):
     )
     prepare_final_review_outbound(session)
     assert session.flow_state.get("final_review_outbound_step")
+
+
+@pytest.mark.asyncio
+async def test_final_review_edit_details_not_available():
+    from backend.intelligence import edit_flow
+
+    session = _session_ready_for_service_selection()
+    se.on_service_selected(session, ServiceCategory.SOLAR)
+    for field, value in (
+        ("service_q1", "off_grid"),
+        ("service_q2", "residential"),
+        ("service_q3", "1500_4000"),
+        ("service_q4", "notes"),
+        ("attachments", "skipped"),
+    ):
+        se.mark_field_validated(session, field, value)
+    se.enter_final_review(session)
+
+    controller = ConversationController()
+    resp = await controller.process_message(session, "edit details", channel="whatsapp")
+    assert "Sorry" in resp.text
+    assert not edit_flow.is_active(session)
 
 
 def test_edit_post_actions_uses_two_row_list_not_four(monkeypatch):
