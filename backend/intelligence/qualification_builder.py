@@ -42,6 +42,8 @@ def _variable_mcq_list_sid(option_count: int) -> str | None:
     fallback = (cfg.twilio_whatsapp_interactive_content_sid or "").strip()
     if option_count == 5:
         sid = (cfg.twilio_mcq_list_5_content_sid or fallback).strip()
+    elif option_count == 1:
+        sid = (cfg.twilio_mcq_list_1_content_sid or "").strip()
     elif option_count == 2:
         # Never use the 4-row template for 2 options — empty rows show {{option_3_label}} placeholders.
         sid = (cfg.twilio_mcq_list_2_content_sid or "").strip()
@@ -253,7 +255,6 @@ def _humanize(field: str, value: Any, *, service_category: str = "") -> str:
 
 FINAL_REVIEW_ACTION_OPTIONS = [
     {"label": "Confirm & Submit", "value": "confirm_submit"},
-    {"label": "Edit Details", "value": "edit_details"},
 ]
 
 
@@ -269,7 +270,7 @@ def final_review_action_step() -> dict:
 
 
 def prepare_final_review_outbound(session) -> dict:
-    """Attach WhatsApp list-picker metadata for Confirm & Submit / Edit Details."""
+    """Attach WhatsApp list-picker metadata for Confirm & Submit."""
     step = _enrich_mcq_step(final_review_action_step())
     session.flow_state["final_review_outbound_step"] = step
     return step
@@ -329,7 +330,7 @@ def format_final_review(session, *, include_footer: bool | None = None) -> str:
     if include_footer:
         blocks.extend([
             "",
-            "Does everything look correct? Reply *Confirm & Submit* or *Edit Details*.",
+            "Does everything look correct? Reply *Confirm & Submit* to finish.",
         ])
     return "\n".join(blocks)
 
