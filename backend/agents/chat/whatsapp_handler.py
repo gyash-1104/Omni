@@ -296,7 +296,13 @@ async def _handle_whatsapp_message_impl(
                 follow_up = hybrid_flow.complete_attachment_upload(session)
                 await save_session(session)
                 await supabase_store.upsert_session_log(session)
-                await send_whatsapp_message(to=phone_number, body=f"{file_ack}\n\n{follow_up}")
+                combined = f"{file_ack}\n\n{follow_up}".strip()
+                outbound_step = (
+                    get_final_review_outbound_step(session)
+                    if se.fs_current_stage(session) == "final_review"
+                    else None
+                )
+                await send_context_then_mcq_list(phone_number, combined, outbound_step)
                 return
             session.mark_field_complete("has_attachments", True)
             await save_session(session)
@@ -396,6 +402,14 @@ async def _handle_whatsapp_message_impl(
         menu_body = hybrid_flow.format_mcq_message(outbound_step)
         if menu_body not in reply:
             reply = f"{reply}\n\n{menu_body}".strip() if reply else menu_body
+    is_final_review_list = (
+        outbound_step
+        and outbound_step.get("field") in ("__final_review__", "__edit_post__")
+    )
+    if is_final_review_list:
+        await send_context_then_mcq_list(phone_number, reply, outbound_step)
+        return
+
     if uses_interactive_list:
         prompt_text = str(outbound_step.get("prompt", "")).strip()
         list_prompt = str(outbound_step.get("twilio_list_prompt", "")).strip()
@@ -403,7 +417,6 @@ async def _handle_whatsapp_message_impl(
             outbound_step.get("field") == "service_category"
             or outbound_step.get("stage") == "service_selection"
         )
-        is_final_review_list = outbound_step.get("field") in ("__final_review__", "__edit_post__")
         if is_service_selection_list:
             transition = (reply or "").strip()
             for chunk in (prompt_text, list_prompt):
@@ -418,9 +431,6 @@ async def _handle_whatsapp_message_impl(
                 body=list_prompt or prompt_text or "Choose your service",
                 step=outbound_step,
             )
-            return
-        if is_final_review_list:
-            await send_context_then_mcq_list(phone_number, reply, outbound_step)
             return
         # Other interactive lists: transition text first, then the list-picker body.
         if reply:

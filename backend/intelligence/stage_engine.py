@@ -30,6 +30,7 @@ STAGE_REQUIRED_FIELDS: dict[str, list[str]] = {
     "ava_intro": ["ava_intro_shown"],
     "client_details": [
         "client_name", "phone_number", "city", "property_location", "preferred_contact_time",
+        "willing_to_create_project",
     ],
     "service_selection": ["service_category"],
     "consultant_assignment": ["assigned_consultant"],
@@ -289,6 +290,7 @@ def reset_for_edit_details(session: Session) -> None:
     ensure_flow_state(session)
     keep_fields = {
         "client_name", "phone_number", "city", "property_location", "preferred_contact_time",
+        "willing_to_create_project",
         "email", "service_category",
     }
     session.completed_fields = [f for f in session.completed_fields if f in keep_fields and field_is_complete(session, f)]

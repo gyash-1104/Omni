@@ -8,7 +8,7 @@ from backend.intelligence.qualification_builder import build_client_details_step
 
 
 def test_fuzzy_morning_contact_time():
-    step = build_client_details_steps()[-1]
+    step = next(s for s in build_client_details_steps() if s["field"] == "preferred_contact_time")
     options = step["options"]
     matched = match_mcq_option("morning hours", options)
     assert matched is not None
@@ -66,7 +66,10 @@ def test_complete_attachment_upload_moves_to_review():
         AttachmentMeta(file_name="plan.png", file_url="http://x", mime_type="image/png")
     ]
     msg = hybrid_flow.complete_attachment_upload(session)
-    assert "FINAL REVIEW" in msg or "final" in msg.lower() or se.can_enter_final_review(session)
+    assert se.fs_current_stage(session) == "final_review"
+    assert session.flow_state.get("final_review_outbound_step")
+    assert "quick review" in msg.lower()
+    assert "Reply *Confirm & Submit*" not in msg
 
 
 def test_stage_advances_one_at_a_time():

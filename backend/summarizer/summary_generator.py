@@ -17,7 +17,7 @@ from backend.utils.logger import log_event
 SECTION_FIELD_MAP = {
     "client_details": [
         "client_name", "phone_number", "city", "email", "property_location",
-        "preferred_contact_time", "service_category", "assigned_consultant",
+        "preferred_contact_time", "willing_to_create_project", "service_category", "assigned_consultant",
     ],
     "service_questionnaire": ["service_q1", "service_q2", "service_q3", "service_q4"],
     "attachments": ["attachments"],

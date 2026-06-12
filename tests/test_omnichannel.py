@@ -301,6 +301,7 @@ def test_handoff_excludes_first_farm_question_when_interactive_list(monkeypatch)
         ("city", "Hyderabad"),
         ("property_location", "HSR"),
         ("preferred_contact_time", "morning"),
+        ("willing_to_create_project", "yes"),
     ):
         se.mark_field_validated(session, field, value)
     se.mark_field_validated(session, "ava_intro_shown", True)
@@ -324,6 +325,31 @@ def test_home_interiors_keeps_own_twilio_templates():
     assert "interior project" in q1["prompt"].lower()
 
 
+def test_willing_to_create_project_follows_contact_time():
+    from backend.intelligence.qualification_builder import build_client_details_steps
+
+    steps = build_client_details_steps()
+    fields = [s["field"] for s in steps]
+    assert fields.index("preferred_contact_time") < fields.index("willing_to_create_project")
+    step = next(s for s in steps if s["field"] == "willing_to_create_project")
+    assert step["prompt"] == "Are you willing to create a project?"
+    assert [o["label"] for o in step["options"]] == ["Yes", "No"]
+
+
+def test_willing_to_create_project_uses_two_row_list(monkeypatch):
+    from backend.config import get_settings
+    from backend.intelligence.qualification_builder import build_client_details_steps
+    from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
+
+    monkeypatch.setenv("TWILIO_MCQ_LIST_2_CONTENT_SID", "HX2row000000000000000000000000001")
+    monkeypatch.setenv("TWILIO_WHATSAPP_QUICK_REPLY", "true")
+    get_settings.cache_clear()
+
+    step = next(s for s in build_client_details_steps() if s["field"] == "willing_to_create_project")
+    assert step.get("twilio_content_sid") == "HX2row000000000000000000000000001"
+    assert mcq_uses_interactive_delivery(step) is True
+
+
 def test_preferred_contact_time_uses_whatsapp_list_template():
     from backend.intelligence.qualification_builder import build_client_details_steps
     from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
@@ -344,7 +370,7 @@ def test_mcq_in_current_stage_only():
         active_consultant="vivek",
     )
     se.start_client_stage(session)
-    for f in ["client_name", "city", "property_location", "preferred_contact_time"]:
+    for f in ["client_name", "city", "property_location", "preferred_contact_time", "willing_to_create_project"]:
         session.mark_field_complete(f, "x")
     session.mark_field_complete("phone_number", "+1")
     se.mark_stage_complete(session, "client_details")
@@ -383,6 +409,7 @@ def test_after_client_details_transition_before_service_selection():
         ("property_location", "HSR"),
         ("email", "skipped"),
         ("preferred_contact_time", "evening"),
+        ("willing_to_create_project", "yes"),
         ("phone_number", "+91999"),
     ):
         se.mark_field_validated(session, field, value)
@@ -524,11 +551,18 @@ def test_invalid_mcq_reasks_current_question():
     assert step["field"] == "preferred_contact_time"
     prompt_snippet = step["prompt"][:30]
 
+    reply, handled = hybrid_flow.process_hybrid_turn(session, "morning")
+    assert handled is True
+    assert se.field_is_complete(session, "preferred_contact_time")
+    step = hybrid_flow.get_current_step(session)
+    assert step is not None
+    assert step["field"] == "willing_to_create_project"
+
     reply, handled = hybrid_flow.process_hybrid_turn(session, "banana pizza random")
     assert handled is True
     assert "Sorry" in reply
-    assert prompt_snippet in reply or "contact" in reply.lower()
-    assert not se.field_is_complete(session, "preferred_contact_time")
+    assert "create a project" in reply.lower()
+    assert not se.field_is_complete(session, "willing_to_create_project")
 
 
 @pytest.mark.asyncio
@@ -579,6 +613,7 @@ async def test_farm_descriptive_answer_not_guardrail_redirect():
         ("city", "Mysore"),
         ("property_location", "Mysore, kuvemunagar"),
         ("preferred_contact_time", "morning"),
+        ("willing_to_create_project", "yes"),
         ("phone_number", "+919999999999"),
         ("ava_intro_shown", True),
     ):
@@ -621,6 +656,7 @@ def _session_ready_for_service_selection() -> Session:
         ("city", "Bengaluru"),
         ("property_location", "HSR Layout"),
         ("preferred_contact_time", "morning"),
+        ("willing_to_create_project", "yes"),
         ("phone_number", "+919999999999"),
     ):
         se.mark_field_validated(session, field, value)

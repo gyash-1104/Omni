@@ -76,7 +76,7 @@ class Session(BaseModel):
             return required_fields_for_summary()
         return [
             "client_name", "phone_number", "city", "property_location",
-            "preferred_contact_time", "overview_property_type",
+            "preferred_contact_time", "willing_to_create_project", "overview_property_type",
         ]
 
     @property

@@ -13,7 +13,11 @@ _COMMON_FIELD_LABELS: dict[str, dict[str, str]] = {
         "afternoon": "Afternoon",
         "evening": "Evening",
         "night": "Night",
-    }
+    },
+    "willing_to_create_project": {
+        "yes": "Yes",
+        "no": "No",
+    },
 }
 
 _CONSULTANT_NAMES = {
