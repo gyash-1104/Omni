@@ -196,7 +196,7 @@ def _should_send_interactive(step: dict[str, Any]) -> bool:
         return bool(_resolve_content_sid(step))
     if field == "service_category":
         return bool(getattr(settings, "twilio_service_selection_content_sid", ""))
-    if field.startswith("__edit_") or field == "__final_review__":
+    if field in ("willing_to_create_project",) or field.startswith("__edit_") or field == "__final_review__":
         return bool(_variable_mcq_list_sid(len([o for o in (step.get("options") or []) if not _is_other_option(o)])))
     return False
 
@@ -243,6 +243,7 @@ def enrich_whatsapp_mcq_step(step: Optional[dict[str, Any]]) -> Optional[dict[st
             or field.startswith("__edit_")
             or field == "__final_review__"
             or field == "preferred_contact_time"
+            or field == "willing_to_create_project"
         ):
             out["require_content_variables"] = True
         return out

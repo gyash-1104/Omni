@@ -21,6 +21,7 @@ _CLIENT_FIELDS: list[tuple[str, str]] = [
     ("city", "City"),
     ("property_location", "Property Location"),
     ("preferred_contact_time", "Preferred Contact Time"),
+    ("willing_to_create_project", "Willing to Create Project"),
     ("email", "Email"),
 ]
 

@@ -65,6 +65,8 @@ def _resolve_mcq_twilio_sid(step: dict) -> str | None:
     field = str(step.get("field", ""))
     if field == "preferred_contact_time":
         return CONTACT_TIME_TWILIO_CONTENT_SID
+    if field == "willing_to_create_project":
+        return _variable_mcq_list_sid(2)
     if field.startswith("service_q") or field.startswith("__edit_") or field == "__final_review__":
         return _variable_mcq_list_sid(_mcq_option_count(step))
     return None
@@ -84,6 +86,7 @@ def _attach_mcq_list_delivery(out: dict, sid: str, step: dict) -> dict:
         or field.startswith("service_q")
         or field.startswith("__edit_")
         or field == "__final_review__"
+        or field == "willing_to_create_project"
     ):
         out["twilio_list_slots"] = count
     return out
@@ -193,6 +196,18 @@ def build_client_details_steps() -> list[dict]:
                 {"label": "Night", "value": "night"},
             ],
         }),
+        _enrich_mcq_step({
+            "id": "cd_create_project",
+            "stage": "client_details",
+            "type": "mcq",
+            "field": "willing_to_create_project",
+            "prompt": "Are you willing to create a project?",
+            "twilio_list_prompt": "Are you willing to create a project?",
+            "options": [
+                {"label": "Yes", "value": "yes"},
+                {"label": "No", "value": "no"},
+            ],
+        }),
     ]
 
 
@@ -293,6 +308,7 @@ def format_final_review(session, *, include_footer: bool | None = None) -> str:
         f"- City: {_humanize('city', ef.get('city'), service_category=service_key)}",
         f"- Property location: {_humanize('property_location', ef.get('property_location'), service_category=service_key)}",
         f"- Preferred contact time: {_humanize('preferred_contact_time', ef.get('preferred_contact_time'), service_category=service_key)}",
+        f"- Willing to create project: {_humanize('willing_to_create_project', ef.get('willing_to_create_project'), service_category=service_key)}",
         f"- Email: {_humanize('email', ef.get('email'), service_category=service_key)}",
         "",
         "*Service Brief*",
