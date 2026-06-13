@@ -1,0 +1,43 @@
+"""Quick review location field labels."""
+from backend.schemas.session import Session, ConversationStage
+from backend.schemas.service import ServiceCategory
+from backend.intelligence import stage_engine as se
+from backend.intelligence.qualification_builder import format_final_review
+
+
+def test_final_review_shows_location_and_property_location_separately():
+    session = Session(
+        session_id="t",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.CONFIRMATION,
+        service_category=ServiceCategory.PROPERTY_DEVELOPMENT,
+        active_consultant="vikram",
+    )
+    se.mark_field_validated(session, "ava_intro_shown", True)
+    for field, value in (
+        ("client_name", "Navya"),
+        ("phone_number", "+919999999999"),
+        ("city", "Hyderabad"),
+        ("property_location", "Bengaluru, hsr layout"),
+        ("preferred_contact_time", "evening"),
+        ("willing_to_create_project", "yes"),
+        ("email", "skipped"),
+    ):
+        se.mark_field_validated(session, field, value)
+    se.on_service_selected(session, ServiceCategory.PROPERTY_DEVELOPMENT)
+    for field, value in (
+        ("service_q1", "residential_plots_layouts"),
+        ("service_q2", "land_feasibility_study"),
+        ("service_q3", "1_5_cr"),
+        ("service_q4", "notes"),
+        ("attachments", "skipped"),
+    ):
+        se.mark_field_validated(session, field, value)
+    se.enter_final_review(session)
+
+    recap = format_final_review(session)
+
+    assert "- Location: Hyderabad" in recap
+    assert "- Property location: Bengaluru, Hsr Layout" in recap
+    assert recap.index("Location:") < recap.index("Property location:")

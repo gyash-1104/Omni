@@ -350,6 +350,71 @@ def test_willing_to_create_project_uses_two_row_list(monkeypatch):
     assert mcq_uses_interactive_delivery(step) is True
 
 
+def test_project_declined_no_ends_chat():
+    session = Session(
+        session_id="t",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+    )
+    se.start_client_stage(session)
+    for field, value in (
+        ("client_name", "Navya"),
+        ("city", "Bengaluru"),
+        ("property_location", "HSR Layout"),
+        ("email", "skipped"),
+        ("preferred_contact_time", "afternoon"),
+    ):
+        se.mark_field_validated(session, field, value)
+    step = hybrid_flow.get_current_step(session)
+    assert step is not None
+    assert step["field"] == "willing_to_create_project"
+
+    reply, handled = hybrid_flow.process_hybrid_turn(session, "no")
+    assert handled is True
+    assert "not looking to start a project" in reply.lower()
+    assert session.flow_state.get("project_declined") is True
+    assert not se.needs_service_selection(session)
+
+
+def test_project_declined_yes_continues_flow():
+    session = Session(
+        session_id="t",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+    )
+    se.start_client_stage(session)
+    for field, value in (
+        ("client_name", "Navya"),
+        ("city", "Bengaluru"),
+        ("property_location", "HSR Layout"),
+        ("email", "skipped"),
+        ("preferred_contact_time", "afternoon"),
+    ):
+        se.mark_field_validated(session, field, value)
+
+    reply, handled = hybrid_flow.process_hybrid_turn(session, "yes")
+    assert handled is True
+    assert session.flow_state.get("project_declined") is not True
+    assert se.needs_service_selection(session)
+    assert hybrid_flow.SERVICE_SELECTION_TRANSITION in reply or "service" in reply.lower()
+
+
+@pytest.mark.asyncio
+async def test_project_declined_follow_up_message():
+    session = Session(
+        session_id="wa_whatsapp:+91999",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.DETAIL_COLLECTION,
+        flow_state={"project_declined": True, "conversation_ended": True},
+    )
+    controller = ConversationController()
+    resp = await controller.process_message(session, "hello again", channel="whatsapp")
+    assert "ready to start a project" in resp.text.lower()
+
+
 def test_preferred_contact_time_uses_whatsapp_list_template():
     from backend.intelligence.qualification_builder import build_client_details_steps
     from backend.agents.chat.twilio_client import mcq_uses_interactive_delivery
@@ -547,6 +612,26 @@ def test_edit_section_menu_uses_clickable_list(monkeypatch):
     assert "Client Details" not in msg
     assert "No problem" in msg
     assert "Which section would you like to update?" in msg
+
+
+@pytest.mark.asyncio
+async def test_thank_you_after_submit_does_not_reopen_final_review():
+    session = Session(
+        session_id="wa_whatsapp:+91999",
+        phone_number="whatsapp:+91999",
+        channel="whatsapp",
+        conversation_stage=ConversationStage.SUMMARY_GENERATED,
+        summary_generated=True,
+        flow_state={
+            "current_stage": "final_review",
+            "final_review_shown": True,
+            "final_review_outbound_step": {"field": "__final_review__", "type": "mcq"},
+        },
+    )
+    controller = ConversationController()
+    resp = await controller.process_message(session, "Thank u", channel="whatsapp")
+    assert "You're welcome" in resp.text
+    assert "look correct" not in resp.text.lower()
 
 
 def test_service_menu_prompt():

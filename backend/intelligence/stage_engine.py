@@ -340,11 +340,15 @@ def needs_client_details(session: Session) -> bool:
 
 def needs_service_selection(session: Session) -> bool:
     reconcile_session(session)
+    if session.flow_state.get("project_declined"):
+        return False
     return is_stage_complete(session, "client_details") and not is_stage_complete(session, "service_selection")
 
 
 def is_collecting_qualification(session: Session) -> bool:
     if session.summary_generated:
+        return False
+    if session.flow_state.get("project_declined"):
         return False
     reconcile_session(session)
     if fs_current_stage(session) == "final_review":
