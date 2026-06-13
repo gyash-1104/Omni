@@ -66,6 +66,8 @@ def _end_conversation(session: Session) -> None:
     session.flow_state.pop("current_step_id", None)
     session.flow_state.pop("current_question", None)
     session.flow_state.pop("pending_fields", None)
+    session.flow_state.pop("final_review_outbound_step", None)
+    session.flow_state.pop("final_review_shown", None)
 
 
 class ConversationController:
@@ -138,6 +140,15 @@ class ConversationController:
             session.add_message(MessageRole.USER, user_message)
             session.add_message(MessageRole.ASSISTANT, thanks)
             return AgentResponse(text=thanks, session=session)
+
+        if session.flow_state.get("project_declined"):
+            session.add_message(MessageRole.USER, user_message)
+            hold = (
+                "Thank you for connecting with TatvaOps. "
+                "Whenever you are ready to start a project, message us anytime."
+            )
+            session.add_message(MessageRole.ASSISTANT, hold)
+            return AgentResponse(text=hold, session=session)
 
         in_review = (
             se.is_in_final_review(session)

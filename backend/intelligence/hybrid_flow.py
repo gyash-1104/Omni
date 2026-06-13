@@ -26,6 +26,17 @@ STAGE_BRIDGES = {
 
 SERVICE_SELECTION_TRANSITION = "Got it. Let us continue."
 
+PROJECT_DECLINED_FAREWELL = (
+    "Thank you for sharing your details with TatvaOps.\n\n"
+    "We understand you are not looking to start a project at this time. "
+    "Whenever you are ready, we will be glad to assist you.\n\n"
+    "Wishing you all the best."
+)
+
+
+def _is_project_declined(value: Any) -> bool:
+    return str(value or "").strip().lower() in ("no", "n")
+
 
 def init_flow(session: Session) -> None:
     se.reconcile_session(session)
@@ -107,6 +118,9 @@ def _complete_field(session: Session, field: str, value: Any) -> Optional[str]:
     pending_q = ["service_q1", "service_q2", "service_q3", "service_q4", "attachments"]
     session.flow_state["pending_questions"] = [q for q in pending_q if q not in completed_q and not se.field_is_complete(session, q)]
 
+    if field == "willing_to_create_project" and _is_project_declined(value):
+        return _end_after_project_declined(session)
+
     session.flow_state.pop("current_step_id", None)
     se.maybe_advance_current_stage(session)
 
@@ -114,6 +128,17 @@ def _complete_field(session: Session, field: str, value: Any) -> Optional[str]:
         return _enter_final_review(session)
 
     return _next_step_message(session)
+
+
+def _end_after_project_declined(session: Session) -> str:
+    """Close the chat politely when the client is not ready to start a project."""
+    session.flow_state.pop("current_step_id", None)
+    se.mark_stage_complete(session, "client_details")
+    session.flow_state["project_declined"] = True
+    session.flow_state["conversation_ended"] = True
+    session.flow_state["current_stage"] = "client_details"
+    se.set_current_question(session, None)
+    return PROJECT_DECLINED_FAREWELL
 
 
 def _is_other_option(opt: dict) -> bool:

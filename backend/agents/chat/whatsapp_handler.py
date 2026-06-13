@@ -362,12 +362,19 @@ async def _handle_whatsapp_message_impl(
         )
         return
 
+    # Already submitted — send text only (no review list / MCQ follow-ups).
+    session_out = agent_response.session
+    if _session_is_submitted(session_out):
+        reply = (agent_response.text or "").strip()
+        if reply:
+            await send_whatsapp_message(to=phone_number, body=reply)
+        return
+
     reply = (agent_response.text or "").strip()
     if not reply:
         print(f"[WhatsApp] Empty reply for message={user_message!r}")
         reply = "Thanks — could you repeat that? Please continue with the current step."
 
-    session_out = agent_response.session
     if edit_flow.is_active(session_out):
         outbound_step = edit_flow.get_outbound_step(session_out)
     elif se.fs_current_stage(session_out) == "final_review":

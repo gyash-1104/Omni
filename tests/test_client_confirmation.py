@@ -40,4 +40,37 @@ def test_client_confirmation_excludes_internal_summary_fields():
     assert "Japandi" not in text
     assert "Aadhya" in text
     assert "Interiors" in text
+    assert "Bengaluru" in text
     assert "Whitefield" in text
+    assert "Location:" in text
+    assert "Property location:" in text
+
+
+def test_client_confirmation_separate_city_and_property_location():
+    """City (where client lives) and property location are distinct in confirmation."""
+    summary = ProjectSummary(
+        session_id="wa_test",
+        generated_at=datetime.utcnow(),
+        next_step="Follow up",
+        project_overview="Property development enquiry.",
+        scope_of_work=[],
+        client_requirements="",
+        technical_specs="",
+        timeline="",
+        special_considerations="",
+        estimated_scope="",
+        design_direction="",
+        execution_readiness="",
+        enquiry_snapshot={
+            "service_category": "property_development",
+            "city": "hyderabad",
+            "property_location": "bengaluru, hsr layout",
+            "assigned_consultant": "vikram",
+        },
+    )
+
+    text = summary.client_confirmation_text()
+
+    assert "📍 Location: Hyderabad" in text
+    assert "📍 Property location: Bengaluru, Hsr Layout" in text
+    assert "Bengaluru" not in text.split("Property location:")[0]

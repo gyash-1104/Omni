@@ -137,16 +137,22 @@ class ProjectSummary(BaseModel):
             "assigned_consultant",
             snap.get("assigned_consultant") or "our specialist",
         )
-        location = display_label(
+        city = display_label(
+            "city",
+            snap.get("city") or "—",
+            service_category=service_key,
+        )
+        property_location = display_label(
             "property_location",
-            snap.get("property_location") or snap.get("city") or "—",
+            snap.get("property_location") or "—",
             service_category=service_key,
         )
 
         return (
             "🏡 TatvaOps\n\n"
             "Your enquiry has been successfully received.\n\n"
-            f"📍 Location: {location}\n"
+            f"📍 Location: {city}\n"
+            f"📍 Property location: {property_location}\n"
             f"🏠 Service: {service}\n"
             f"👨‍💼 Assigned Specialist: {consultant}\n\n"
             "Our team is reviewing your requirements and will contact you "
